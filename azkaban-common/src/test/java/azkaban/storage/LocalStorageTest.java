@@ -23,7 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
-import azkaban.spi.StorageMetadata;
+import azkaban.spi.ProjectStorageMetadata;
 import azkaban.utils.Md5Hasher;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -63,9 +63,9 @@ public class LocalStorageTest {
     final ClassLoader classLoader = getClass().getClassLoader();
     final File testFile = new File(classLoader.getResource(SAMPLE_FILE).getFile());
 
-    final StorageMetadata metadata = new StorageMetadata(
+    final ProjectStorageMetadata metadata = new ProjectStorageMetadata(
         1, 1, "testuser", Md5Hasher.md5Hash(testFile));
-    final String key = this.localStorage.put(metadata, testFile);
+    final String key = this.localStorage.putProject(metadata, testFile);
     assertNotNull(key);
     log.info("Key URI: " + key);
 
@@ -82,7 +82,7 @@ public class LocalStorageTest {
     assertTrue(FileUtils.contentEquals(testFile, expectedTargetFile));
 
     // test get
-    final InputStream getIs = this.localStorage.get(key);
+    final InputStream getIs = this.localStorage.getProject(key);
     assertNotNull(getIs);
     final File getFile = new File("tmp.get");
     FileUtils.copyInputStreamToFile(getIs, getFile);
@@ -94,7 +94,7 @@ public class LocalStorageTest {
     assertTrue(this.localStorage.delete(key));
     boolean exceptionThrown = false;
     try {
-      this.localStorage.get(key);
+      this.localStorage.getProject(key);
     } catch (final FileNotFoundException e) {
       exceptionThrown = true;
     }

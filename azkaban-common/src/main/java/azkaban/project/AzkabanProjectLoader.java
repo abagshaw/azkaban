@@ -17,10 +17,13 @@
 
 package azkaban.project;
 
+import static azkaban.utils.ThinArchiveUtils.*;
 import static java.util.Objects.requireNonNull;
 
 import azkaban.Constants;
 import azkaban.Constants.ConfigurationKeys;
+import azkaban.db.DatabaseOperator;
+import azkaban.db.SQLTransaction;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutionReference;
 import azkaban.executor.ExecutorLoader;
@@ -40,7 +43,12 @@ import azkaban.utils.Pair;
 import azkaban.utils.Props;
 import azkaban.utils.Utils;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +56,8 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.zip.ZipFile;
 import javax.inject.Inject;
+import org.apache.commons.dbutils.ResultSetHandler;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,11 +69,14 @@ class AzkabanProjectLoader {
   private static final Logger log = LoggerFactory.getLogger(AzkabanProjectLoader.class);
   private static final String DIRECTORY_FLOW_REPORT_KEY = "Directory Flow";
 
+  private static final String SELECT_DEPENDENCY_CACHE_ENTRY_BY_HASH = "SELECT * FROM dependencies WHERE hash = ?";
+
   private final Props props;
 
   private final ProjectLoader projectLoader;
   private final StorageManager storageManager;
   private final FlowLoaderFactory flowLoaderFactory;
+  private final DatabaseOperator dbOperator;
   private final File tempDir;
   private final int projectVersionRetention;
   private final ExecutorLoader executorLoader;
@@ -71,11 +84,13 @@ class AzkabanProjectLoader {
   @Inject
   AzkabanProjectLoader(final Props props, final ProjectLoader projectLoader,
       final StorageManager storageManager, final FlowLoaderFactory flowLoaderFactory,
-      final ExecutorLoader executorLoader) {
+      final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator) {
     this.props = requireNonNull(props, "Props is null");
     this.projectLoader = requireNonNull(projectLoader, "project Loader is null");
     this.storageManager = requireNonNull(storageManager, "Storage Manager is null");
     this.flowLoaderFactory = requireNonNull(flowLoaderFactory, "Flow Loader Factory is null");
+
+    this.dbOperator = databaseOperator;
 
     this.tempDir = new File(props.getString(ConfigurationKeys.PROJECT_TEMP_DIR, "temp"));
     this.executorLoader = executorLoader;
@@ -103,28 +118,31 @@ class AzkabanProjectLoader {
     final Props prop = new Props(this.props);
     prop.putAll(additionalProps);
 
-    File file = null;
+    File folder = null;
     final FlowLoader loader;
 
     try {
-      file = unzipProject(archive, fileType);
+      folder = unzipProject(archive, fileType);
 
-      reports = validateProject(project, archive, file, prop);
+      File startupDependencies = getStartupDependenciesFile(folder);
+      reports = startupDependencies.exists() ? validateAndPersistDependencies(project, archive, folder,
+                                                startupDependencies, prop)
+                                             : validateProject(project, archive, folder, prop);
 
-      loader = this.flowLoaderFactory.createFlowLoader(file);
-      reports.put(DIRECTORY_FLOW_REPORT_KEY, loader.loadProjectFlow(project, file));
+      loader = this.flowLoaderFactory.createFlowLoader(folder);
+      reports.put(DIRECTORY_FLOW_REPORT_KEY, loader.loadProjectFlow(project, folder));
 
       // Check the validation report.
       if (!isReportStatusValid(reports, project)) {
-        FlowLoaderUtils.cleanUpDir(file);
+        FlowLoaderUtils.cleanUpDir(folder);
         return reports;
       }
 
       // Upload the project to DB and storage.
-      persistProject(project, loader, archive, file, uploader);
+      persistProject(project, loader, archive, folder, uploader);
 
     } finally {
-      FlowLoaderUtils.cleanUpDir(file);
+      FlowLoaderUtils.cleanUpDir(folder);
     }
 
     // Clean up project old installations after new project is uploaded successfully.
@@ -152,8 +170,59 @@ class AzkabanProjectLoader {
     return file;
   }
 
+  private Map<String, ValidationReport> validateAndPersistDependencies(final Project project,
+      final File archive, final File folder, final File startupDependencies, final Props prop)
+      throws ProjectManagerException {
+
+    try {
+      final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
+
+      ResultSetHandler<String> handler = rs -> {
+        if (!rs.next()) {
+          return null;
+        }
+        return rs.getString("name");
+      };
+
+      final SQLTransaction<List<String>> transaction = transOperator -> {
+        List<String> queries = new ArrayList<>();
+        for (StartupDependency d : dependencies) {
+          queries.add(transOperator.query(SELECT_DEPENDENCY_CACHE_ENTRY_BY_HASH, handler, d.sha1));
+        }
+        return queries;
+      };
+
+      final List<String> res = this.dbOperator.transaction(transaction);
+
+
+      // Download the file from artifactory
+      File jarsLocation = Utils.createTempDir(this.tempDir);
+
+      String toDownload = getArtifactoryUrlFromIvyCoordinates(dependencies.get(1).ivyCoordinates, dependencies.get(1).file);
+
+      ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
+      FileOutputStream fileOS = new FileOutputStream(jarsLocation.getAbsolutePath() + "/" + dependencies.get(1).file);
+      FileChannel writeChannel = fileOS.getChannel();
+      writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
+
+
+    } catch (Exception e) {
+      throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
+    }
+
+
+
+
+    return validateProject(project, archive, folder, prop);
+  }
+
+  private String getArtifactoryUrlFromIvyCoordinates(String ivyCoordinate, String fileName) {
+    String[] coordinateParts = ivyCoordinate.split(":");
+    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/esv4-release-cache/" + coordinateParts[0].replace(".", "/") + "/" + coordinateParts[1] + "/" + coordinateParts[2] + "/" + fileName;
+  }
+
   private Map<String, ValidationReport> validateProject(final Project project,
-      final File archive, final File file, final Props prop) {
+      final File archive, final File folder, final Props prop) {
     prop.put(ValidatorConfigs.PROJECT_ARCHIVE_FILE_PATH,
         archive.getAbsolutePath());
     // Basically, we want to make sure that for different invocations to the
@@ -176,7 +245,7 @@ class AzkabanProjectLoader {
     log.info("Validating project " + archive.getName()
         + " using the registered validators "
         + validatorManager.getValidatorsInfo().toString());
-    return validatorManager.validate(project, file);
+    return validatorManager.validate(project, folder);
   }
 
   private boolean isReportStatusValid(final Map<String, ValidationReport> reports,
