@@ -104,6 +104,18 @@ public class LocalStorage implements Storage {
     return getRelativePath(targetFile);
   }
 
+  @Override
+  public void putDependency(File localFile, String name, String hash) {
+    throw new UnsupportedOperationException(
+        "Not implemented yet.");
+  }
+
+  @Override
+  public InputStream getDependency(String name, String hash) {
+    throw new UnsupportedOperationException(
+        "Not implemented yet.");
+  }
+
   private String getRelativePath(final File targetFile) {
     return this.rootDirectory.toURI().relativize(targetFile.toURI()).getPath();
   }

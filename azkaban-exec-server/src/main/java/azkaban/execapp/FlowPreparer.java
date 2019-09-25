@@ -25,13 +25,17 @@ import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
 import azkaban.project.StartupDependency;
+import azkaban.spi.Storage;
+import azkaban.spi.StorageException;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,6 +44,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,10 +65,12 @@ class FlowPreparer {
   // Null if cache clean-up is disabled
   private final Optional<ProjectCacheCleaner> projectCacheCleaner;
   private final ProjectCacheHitRatio projectCacheHitRatio;
+  private final Storage storage;
 
   FlowPreparer(final StorageManager storageManager, final File executionsDir,
       final File projectsDir, final ProjectCacheCleaner cleaner,
-      final ProjectCacheHitRatio projectCacheHitRatio) {
+      final ProjectCacheHitRatio projectCacheHitRatio,
+      final Storage storage) {
     Preconditions.checkNotNull(storageManager);
     Preconditions.checkNotNull(executionsDir);
     Preconditions.checkNotNull(projectsDir);
@@ -76,6 +84,7 @@ class FlowPreparer {
     this.projectCacheDir = projectsDir;
     this.projectCacheCleaner = Optional.ofNullable(cleaner);
     this.projectCacheHitRatio = projectCacheHitRatio;
+    this.storage = storage;
   }
 
   /**
@@ -215,7 +224,7 @@ class FlowPreparer {
       // See if archive is a thin archive, if so - download dependencies
       File startupDependencies = getStartupDependenciesFile(dest);
       if (startupDependencies.exists()) {
-        downloadDependencies(dest, startupDependencies);
+        downloadAllDependencies(dest, startupDependencies);
       }
 
       projectDirectoryMetadata.setDirSizeInByte(calculateDirSizeAndSave(dest));
@@ -230,11 +239,33 @@ class FlowPreparer {
    * @param folder root of unzipped project
    * @throws IOException if downloading JARs or reading startup-dependencies.json fails
    */
-  private void downloadDependencies(final File folder, final File startupDependencies) throws IOException {
+  private void downloadAllDependencies(final File folder, final File startupDependencies) throws IOException {
     final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from HDFS
+    dependencies.stream().forEach(sd -> downloadDependency(folder, sd));
+  }
 
+  private void downloadDependency(final File folder, final StartupDependency dependencyInfo) {
+    try (InputStream is = this.storage.getDependency(dependencyInfo.file, dependencyInfo.sha1)) {
+      final File file = File.createTempFile(FilenameUtils.removeExtension(dependencyInfo.file),
+          FilenameUtils.getExtension(dependencyInfo.file), folder);
+
+      /* Copy from storage to output stream */
+      try (FileOutputStream fos = new FileOutputStream(file)) {
+        IOUtils.copy(is, fos);
+      }
+
+      /* Validate checksum */
+      validateChecksum(file, pfh);
+
+      /* Attach file to handler */
+      pfh.setLocalFile(file);
+
+      return pfh;
+    } catch (final IOException e) {
+      throw new StorageException(e);
+    }
   }
 
   /**

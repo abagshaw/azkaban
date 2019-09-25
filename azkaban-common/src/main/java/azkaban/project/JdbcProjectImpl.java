@@ -35,8 +35,8 @@ import azkaban.project.ProjectLogEvent.EventType;
 import azkaban.user.Permission;
 import azkaban.user.User;
 import azkaban.utils.GZIPUtils;
+import azkaban.utils.HashUtils;
 import azkaban.utils.JSONUtils;
-import azkaban.utils.Md5Hasher;
 import azkaban.utils.Pair;
 import azkaban.utils.Props;
 import azkaban.utils.PropsUtils;
@@ -289,15 +289,15 @@ public class JdbcProjectImpl implements ProjectLoader {
 
 
   private byte[] computeHash(final File localFile) {
-    logger.info("Creating message digest for upload " + localFile.getName());
+    logger.info("Creating MD5 hash for upload " + localFile.getName());
     final byte[] md5;
     try {
-      md5 = Md5Hasher.md5Hash(localFile);
+      md5 = HashUtils.MD5.getHash(localFile);
     } catch (final IOException e) {
-      throw new ProjectManagerException("Error getting md5 hash.", e);
+      throw new ProjectManagerException("Error getting MD5 hash.", e);
     }
 
-    logger.info("Md5 hash created");
+    logger.info("MD5 hash created");
     return md5;
   }
 
@@ -522,9 +522,9 @@ public class JdbcProjectImpl implements ProjectLoader {
     // Check md5.
     final byte[] md5;
     try {
-      md5 = Md5Hasher.md5Hash(file);
+      md5 = HashUtils.MD5.getHash(file);
     } catch (final IOException e) {
-      throw new ProjectManagerException("Error getting md5 hash.", e);
+      throw new ProjectManagerException("Error getting MD5 hash.", e);
     }
 
     if (Arrays.equals(projHandler.getMd5Hash(), md5)) {

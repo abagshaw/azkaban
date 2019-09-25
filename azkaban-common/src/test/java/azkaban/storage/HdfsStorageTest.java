@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
-import azkaban.utils.Md5Hasher;
+import azkaban.utils.HashUtils;
 import java.io.File;
 import java.net.URI;
 import org.apache.commons.codec.binary.Hex;
@@ -52,20 +52,20 @@ public class HdfsStorageTest {
   }
 
   @Test
-  public void testGet() throws Exception {
+  public void testGetProject() throws Exception {
     this.hdfsStorage.getProject("1/1-hash.zip");
     verify(this.hdfs).open(new Path("hdfs://localhost:9000/path/to/foo/1/1-hash.zip"));
   }
 
   @Test
-  public void testPut() throws Exception {
+  public void testPutProject() throws Exception {
     final File file = new File(
         getClass().getClassLoader().getResource("sample_flow_01.zip").getFile());
-    final String hash = new String(Hex.encodeHex(Md5Hasher.md5Hash(file)));
+    final String hash = new String(Hex.encodeHex(HashUtils.MD5.getHash(file)));
 
     when(this.hdfs.exists(any(Path.class))).thenReturn(false);
 
-    final ProjectStorageMetadata metadata = new ProjectStorageMetadata(1, 2, "uploader", Md5Hasher.md5Hash(file));
+    final ProjectStorageMetadata metadata = new ProjectStorageMetadata(1, 2, "uploader", HashUtils.MD5.getHash(file));
     final String key = this.hdfsStorage.putProject(metadata, file);
 
     final String expectedName = String.format("1/1-%s.zip", hash);
