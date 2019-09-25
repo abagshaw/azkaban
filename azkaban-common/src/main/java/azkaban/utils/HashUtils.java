@@ -78,11 +78,15 @@ public enum HashUtils {
   }
 
   public static boolean isSameHash(String a, byte[] b) throws DecoderException {
-    return isSameHash(Hex.decodeHex(a.toCharArray()), b);
+    return isSameHash(stringHashToBytes(a), b);
   }
 
   public static boolean isSameHash(byte[] a, byte[] b) {
     return Arrays.equals(a, b);
+  }
+
+  public static byte[] stringHashToBytes(String a) throws DecoderException {
+    return Hex.decodeHex(a.toCharArray());
   }
 
 }

@@ -21,6 +21,7 @@ import static org.mockito.Mockito.when;
 
 import azkaban.db.DatabaseOperator;
 import azkaban.executor.ExecutorLoader;
+import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.user.User;
 import azkaban.utils.Props;
@@ -39,6 +40,7 @@ public class ProjectManagerTest {
   private Props props;
   private ExecutorLoader executorLoader;
   private DatabaseOperator dbOperator;
+  private Storage storage;
 
   @Before
   public void setUp() throws Exception {
@@ -47,8 +49,9 @@ public class ProjectManagerTest {
     this.projectLoader = mock(ProjectLoader.class);
     this.executorLoader = mock(ExecutorLoader.class);
     this.dbOperator = mock(DatabaseOperator.class);
+    this.storage = mock(Storage.class);
     this.azkabanProjectLoader = new AzkabanProjectLoader(this.props, this.projectLoader,
-        this.storageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator);
+        this.storageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator, storage);
     this.manager = new ProjectManager(this.azkabanProjectLoader, this.projectLoader,
         this.storageManager, this.props);
   }
