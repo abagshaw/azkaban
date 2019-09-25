@@ -248,11 +248,11 @@ class FlowPreparer {
     final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from HDFS
-    log.info(String.format("Downloading %d JAR dependencies from HDFS...", dependencies.size()));
+    log.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
     for (StartupDependency d : dependencies) {
       downloadDependency(folder, d);
     }
-    log.info(String.format("Finished downloading %d JAR dependencies from HDFS", dependencies.size()));
+    log.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
   }
 
   private void downloadDependency(final File folder, final StartupDependency dependencyInfo) throws IOException {

@@ -44,6 +44,7 @@ import azkaban.project.ProjectWhitelist.WhitelistType;
 import azkaban.sla.SlaOption;
 import azkaban.spi.AzkabanEventReporter;
 import azkaban.spi.EventType;
+import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.FileIOUtils.JobMetaData;
@@ -142,6 +143,7 @@ public class FlowRunnerManager implements EventListener,
   private final Object executionDirDeletionSync = new Object();
   private final CommonMetrics commonMetrics;
   private final ExecMetrics execMetrics;
+  private final Storage storage;
 
   private final int numThreads;
   private final int numJobThreadPerFlow;
@@ -168,6 +170,7 @@ public class FlowRunnerManager implements EventListener,
       final AlerterHolder alerterHolder,
       final CommonMetrics commonMetrics,
       final ExecMetrics execMetrics,
+      final Storage storage,
       @Nullable final AzkabanEventReporter azkabanEventReporter) throws IOException {
     this.azkabanProps = props;
 
@@ -194,6 +197,7 @@ public class FlowRunnerManager implements EventListener,
     this.alerterHolder = alerterHolder;
     this.commonMetrics = commonMetrics;
     this.execMetrics = execMetrics;
+    this.storage = storage;
 
     this.jobLogChunkSize = this.azkabanProps.getString("job.log.chunk.size", "5MB");
     this.jobLogNumFiles = this.azkabanProps.getInt("job.log.backup.index", 4);
@@ -221,7 +225,7 @@ public class FlowRunnerManager implements EventListener,
 
     // Create a flow preparer
     this.flowPreparer = new FlowPreparer(storageManager, this.executionDirectory,
-        this.projectDirectory, cleaner, this.execMetrics.getProjectCacheHitRatio());
+        this.projectDirectory, cleaner, this.execMetrics.getProjectCacheHitRatio(), this.storage);
 
     this.execMetrics.addFlowRunnerManagerMetrics(this);
 

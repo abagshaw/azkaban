@@ -37,6 +37,7 @@ import azkaban.project.validator.ValidationStatus;
 import azkaban.project.validator.ValidatorConfigs;
 import azkaban.project.validator.ValidatorManager;
 import azkaban.project.validator.XmlValidatorManager;
+import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.user.User;
 import azkaban.utils.Pair;
@@ -58,6 +59,7 @@ import java.util.zip.ZipFile;
 import javax.inject.Inject;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,17 +82,20 @@ class AzkabanProjectLoader {
   private final File tempDir;
   private final int projectVersionRetention;
   private final ExecutorLoader executorLoader;
+  private final Storage storage;
 
   @Inject
   AzkabanProjectLoader(final Props props, final ProjectLoader projectLoader,
       final StorageManager storageManager, final FlowLoaderFactory flowLoaderFactory,
-      final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator) {
+      final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator,
+      final Storage storage) {
     this.props = requireNonNull(props, "Props is null");
     this.projectLoader = requireNonNull(projectLoader, "project Loader is null");
     this.storageManager = requireNonNull(storageManager, "Storage Manager is null");
     this.flowLoaderFactory = requireNonNull(flowLoaderFactory, "Flow Loader Factory is null");
 
     this.dbOperator = databaseOperator;
+    this.storage = storage;
 
     this.tempDir = new File(props.getString(ConfigurationKeys.PROJECT_TEMP_DIR, "temp"));
     this.executorLoader = executorLoader;
@@ -195,15 +200,27 @@ class AzkabanProjectLoader {
       final List<String> res = this.dbOperator.transaction(transaction);
 
 
-      // Download the file from artifactory
+      // Download the files from artifactory
       File jarsLocation = Utils.createTempDir(this.tempDir);
 
-      String toDownload = getArtifactoryUrlFromIvyCoordinates(dependencies.get(1).ivyCoordinates, dependencies.get(1).file);
+      for (StartupDependency d : dependencies) {
+        if (res.contains(d.file)) {
+          continue;
+        }
 
-      ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
-      FileOutputStream fileOS = new FileOutputStream(jarsLocation.getAbsolutePath() + "/" + dependencies.get(1).file);
-      FileChannel writeChannel = fileOS.getChannel();
-      writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
+        File downloadedJar = File.createTempFile(FilenameUtils.removeExtension(d.file),
+            FilenameUtils.getExtension(d.file),
+            jarsLocation);
+
+        String toDownload = getArtifactoryUrlFromIvyCoordinates(d.ivyCoordinates, d.file);
+
+        ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
+        FileOutputStream fileOS = new FileOutputStream(downloadedJar);
+        FileChannel writeChannel = fileOS.getChannel();
+        writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
+
+        this.storage.putDependency(downloadedJar, d.file, d.sha1);
+      }
 
 
     } catch (Exception e) {
@@ -218,7 +235,7 @@ class AzkabanProjectLoader {
 
   private String getArtifactoryUrlFromIvyCoordinates(String ivyCoordinate, String fileName) {
     String[] coordinateParts = ivyCoordinate.split(":");
-    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/esv4-release-cache/" + coordinateParts[0].replace(".", "/") + "/" + coordinateParts[1] + "/" + coordinateParts[2] + "/" + fileName;
+    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/" + coordinateParts[0].replace(".", "/") + "/" + coordinateParts[1] + "/" + coordinateParts[2] + "/" + fileName;
   }
 
   private Map<String, ValidationReport> validateProject(final Project project,

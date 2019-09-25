@@ -23,6 +23,7 @@ import azkaban.project.ProjectLoader;
 import azkaban.spi.AzkabanException;
 import azkaban.spi.Storage;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import javax.inject.Singleton;
 import java.io.File;
 import java.io.InputStream;
 import javax.inject.Inject;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
@@ -86,27 +88,33 @@ public class DatabaseStorage implements Storage {
   }
 
   @Override
-  public void putDependency(final File localFile, String name, String hash) throws AzkabanException {
+  public void putDependency(final File localFile, String name, String sha1) throws AzkabanException {
     logger.info(String
-        .format("Uploading dependency: %s [%d bytes]", localFile.getName(),
+        .format("Uploading dependency: %s [%d bytes]", name,
             localFile.length()));
 
     byte[] fileBytes = null;
     try {
       fileBytes = FileUtils.readFileToByteArray(localFile);
     } catch (IOException e) {
-      logger.error("Could not read local dependency file.", e);
-      throw new AzkabanException("Could not read local dependency file.", e);
+      String errorMsg = "Could not read local dependency file.";
+      logger.error(errorMsg, e);
+      throw new AzkabanException(errorMsg, e);
     }
 
     try {
-      this.dbOperator.update(INSERT_DEPENDENCY_FILE, name, hash, fileBytes);
+      this.dbOperator.update(INSERT_DEPENDENCY_FILE, name, HashUtils.stringHashToBytes(sha1), fileBytes);
     } catch (final SQLException e) {
-      logger.error("Uploading dependency failed.", e);
-      throw new AzkabanException("Uploading dependency failed.", e);
+      String errorMsg = "Uploading dependency failed.";
+      logger.error(errorMsg, e);
+      throw new AzkabanException(errorMsg, e);
+    } catch (final DecoderException e) {
+      String errorMsg = String.format("Decoding base64 sha1 hash failed, file: %s sha1: %s", name, sha1);
+      logger.error(errorMsg, e);
+      throw new AzkabanException(errorMsg, e);
     }
 
-    logger.info(String.format("Finished uploading dependency: %s [%d bytes]", localFile.getName(),
+    logger.info(String.format("Finished uploading dependency: %s [%d bytes]", name,
         localFile.length()));
   }
 
@@ -126,8 +134,9 @@ public class DatabaseStorage implements Storage {
     try {
       fileBytes = this.dbOperator.query(SELECT_DEPENDENCY_FILE, handler, name, hash);
     } catch (final SQLException e) {
-      logger.error("Fetching dependency failed.", e);
-      throw new AzkabanException("Fetching dependency failed.", e);
+      String errorMsg = "Fetching dependency failed.";
+      logger.error(errorMsg, e);
+      throw new AzkabanException(errorMsg, e);
     }
 
     InputStream stream = new ByteArrayInputStream(fileBytes);

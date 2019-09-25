@@ -33,6 +33,7 @@ import azkaban.executor.ExecutorManagerException;
 import azkaban.flow.Flow;
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
+import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.test.executions.ExecutionsTestUtil;
 import azkaban.user.User;
@@ -67,6 +68,7 @@ public class AzkabanProjectLoaderTest {
   private ProjectLoader projectLoader;
   private ExecutorLoader executorLoader;
   private DatabaseOperator dbOperator;
+  private Storage storage;
 
   @Before
   public void setUp() throws Exception {
@@ -77,9 +79,10 @@ public class AzkabanProjectLoaderTest {
     this.projectLoader = mock(ProjectLoader.class);
     this.executorLoader = mock(ExecutorLoader.class);
     this.dbOperator = mock(DatabaseOperator.class);
+    this.storage = mock(Storage.class);
 
     this.azkabanProjectLoader = new AzkabanProjectLoader(props, this.projectLoader,
-        this.storageManager, new FlowLoaderFactory(props), this.executorLoader, this.dbOperator);
+        this.storageManager, new FlowLoaderFactory(props), this.executorLoader, this.dbOperator, this.storage);
   }
 
   @Test
