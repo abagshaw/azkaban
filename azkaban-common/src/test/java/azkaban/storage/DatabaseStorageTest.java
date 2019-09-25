@@ -32,9 +32,7 @@ import org.junit.Test;
 public class DatabaseStorageTest {
 
   private final ProjectLoader projectLoader = mock(ProjectLoader.class);
-  private final DatabaseOperator dbOperator = mock(DatabaseOperator.class);
-  private final Props props = new Props();
-  private final DatabaseStorage databaseStorage = new DatabaseStorage(this.props, this.projectLoader, this.dbOperator);
+  private final DatabaseStorage databaseStorage = new DatabaseStorage(this.projectLoader);
 
   @Test
   public void testPutProject() throws Exception {
