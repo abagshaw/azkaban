@@ -43,7 +43,7 @@ public interface Storage {
   InputStream getProject(String key) throws IOException;
 
   /**
-   * Put an project and return a key.
+   * Put a project and return a key.
    *
    * @param metadata Metadata related to the input stream
    * @param localFile Read data from a local file

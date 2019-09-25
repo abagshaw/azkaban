@@ -525,14 +525,14 @@ public class JdbcProjectImpl implements ProjectLoader {
       throw new ProjectManagerException("Error getting MD5 hash.", e);
     }
 
-    if (Arrays.equals(projHandler.getMd5Hash(), md5)) {
+    if (Arrays.equals(projHandler.getMD5Hash(), md5)) {
       logger.info("Md5 Hash is valid");
     } else {
       throw new ProjectManagerException(
           String.format("Md5 Hash failed on project %s version %s retrieval of file %s. "
                   + "Expected hash: %s , got hash: %s",
               projHandler.getProjectId(), projHandler.getVersion(), file.getAbsolutePath(),
-              Arrays.toString(projHandler.getMd5Hash()), Arrays.toString(md5)));
+              Arrays.toString(projHandler.getMD5Hash()), Arrays.toString(md5)));
     }
 
     projHandler.setLocalFile(file);
