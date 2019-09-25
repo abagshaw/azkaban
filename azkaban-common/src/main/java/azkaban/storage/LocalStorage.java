@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
-import azkaban.spi.StorageMetadata;
+import azkaban.spi.ProjectStorageMetadata;
 import azkaban.utils.FileIOUtils;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -73,12 +73,12 @@ public class LocalStorage implements Storage {
    * @param key Relative path of the file from the baseDirectory
    */
   @Override
-  public InputStream get(final String key) throws IOException {
+  public InputStream getProject(final String key) throws IOException {
     return new FileInputStream(getFile(key));
   }
 
   @Override
-  public String put(final StorageMetadata metadata, final File localFile) {
+  public String putProject(final ProjectStorageMetadata metadata, final File localFile) {
     final File projectDir = new File(this.rootDirectory, String.valueOf(metadata.getProjectId()));
     if (projectDir.mkdir()) {
       log.info("Created project dir: " + projectDir.getAbsolutePath());

@@ -35,21 +35,25 @@ import java.io.InputStream;
 public interface Storage {
 
   /**
-   * Get an InputStream object by providing a key.
+   * Get an InputStream object for a project by providing a key.
    *
    * @param key The key is a string pointing to the blob in Storage.
    * @return InputStream for fetching the blob. null if the key is not found.
    */
-  InputStream get(String key) throws IOException;
+  InputStream getProject(String key) throws IOException;
 
   /**
-   * Put an object and return a key.
+   * Put an project and return a key.
    *
    * @param metadata Metadata related to the input stream
    * @param localFile Read data from a local file
    * @return Key associated with the current object on successful put
    */
-  String put(StorageMetadata metadata, File localFile);
+  String putProject(ProjectStorageMetadata metadata, File localFile);
+
+  void putDependency(File localFile, String name, String hash);
+
+  InputStream getDependency(String name, String hash) throws IOException;
 
   /**
    * Delete an object from Storage.

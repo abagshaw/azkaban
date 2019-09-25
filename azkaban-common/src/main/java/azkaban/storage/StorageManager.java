@@ -26,7 +26,7 @@ import azkaban.project.ProjectFileHandler;
 import azkaban.project.ProjectLoader;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
-import azkaban.spi.StorageMetadata;
+import azkaban.spi.ProjectStorageMetadata;
 import azkaban.user.User;
 import azkaban.utils.Md5Hasher;
 import azkaban.utils.Props;
@@ -94,7 +94,7 @@ public class StorageManager {
     if (!(this.storage instanceof DatabaseStorage)) {
       md5 = computeHash(localFile);
     }
-    final StorageMetadata metadata = new StorageMetadata(
+    final ProjectStorageMetadata metadata = new ProjectStorageMetadata(
         project.getId(),
         version,
         uploader.getUserId(),
@@ -103,7 +103,7 @@ public class StorageManager {
         metadata, localFile.getName(), localFile.length()));
 
     /* upload to storage */
-    final String resourceId = this.storage.put(metadata, localFile);
+    final String resourceId = this.storage.putProject(metadata, localFile);
 
     /* Add metadata to db */
     // TODO spyne: remove hack. Database storage should go through the same flow
@@ -154,7 +154,7 @@ public class StorageManager {
         String.format("Fetching project file. project ID: %d version: %d", projectId, version));
     // TODO spyne: remove huge hack ! There should not be any special handling for Database Storage.
     if (this.storage instanceof DatabaseStorage) {
-      return ((DatabaseStorage) this.storage).get(projectId, version);
+      return ((DatabaseStorage) this.storage).getProject(projectId, version);
     }
 
     /* Fetch meta data from db */
@@ -164,7 +164,7 @@ public class StorageManager {
     final String resourceId = requireNonNull(pfh.getResourceId(),
         String.format("URI is null. project ID: %d version: %d",
             pfh.getProjectId(), pfh.getVersion()));
-    try (InputStream is = this.storage.get(resourceId)) {
+    try (InputStream is = this.storage.getProject(resourceId)) {
       final File file = createTempOutputFile(pfh);
 
       /* Copy from storage to output stream */

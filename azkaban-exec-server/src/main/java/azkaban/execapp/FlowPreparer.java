@@ -17,6 +17,7 @@
 
 package azkaban.execapp;
 
+import static azkaban.utils.ThinArchiveUtils.*;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
@@ -24,6 +25,7 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
+import azkaban.project.StartupDependency;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.Utils;
@@ -35,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.FileUtils;
@@ -209,10 +212,30 @@ class FlowPreparer {
       final File zipFile = requireNonNull(projectFileHandler.getLocalFile());
       final ZipFile zip = new ZipFile(zipFile);
       Utils.unzip(zip, dest);
+
+      // See if archive is a thin archive, if so - download dependencies
+      File startupDependencies = getStartupDependenciesFile(dest);
+      if (startupDependencies.exists()) {
+        downloadDependencies(dest, startupDependencies);
+      }
+
       proj.setDirSizeInByte(calculateDirSizeAndSave(dest));
     } finally {
       projectFileHandler.deleteLocalFile();
     }
+  }
+
+  /**
+   * Download nessecary JAR dependencies from HDFS as specified in archive's /app-meta/startup-dependencies.json
+   *
+   * @param folder root of unzipped project
+   * @throws IOException if downloading JARs or reading startup-dependencies.json fails
+   */
+  private void downloadDependencies(final File folder, final File startupDependencies) throws IOException {
+    final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
+
+    // Download each of the dependencies from HDFS
+
   }
 
   /**
