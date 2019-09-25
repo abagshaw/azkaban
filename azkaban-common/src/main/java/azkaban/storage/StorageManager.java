@@ -28,14 +28,13 @@ import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.user.User;
-import azkaban.utils.Md5Hasher;
+import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.apache.commons.io.IOUtils;
@@ -135,7 +134,7 @@ public class StorageManager {
   private byte[] computeHash(final File localFile) {
     final byte[] md5;
     try {
-      md5 = Md5Hasher.md5Hash(localFile);
+      md5 = HashUtils.MD5.getHash(localFile);
     } catch (final IOException e) {
       throw new StorageException(e);
     }
@@ -185,8 +184,8 @@ public class StorageManager {
   }
 
   private void validateChecksum(final File file, final ProjectFileHandler pfh) throws IOException {
-    final byte[] hash = Md5Hasher.md5Hash(file);
-    checkState(Arrays.equals(pfh.getMd5Hash(), hash),
+    final byte[] hash = HashUtils.MD5.getHash(file);
+    checkState(HashUtils.isSameHash(pfh.getMd5Hash(), hash),
         String.format("MD5 HASH Failed. project ID: %d version: %d Expected: %s Actual: %s",
             pfh.getProjectId(), pfh.getVersion(),
             new String(pfh.getMd5Hash(), StandardCharsets.UTF_8),

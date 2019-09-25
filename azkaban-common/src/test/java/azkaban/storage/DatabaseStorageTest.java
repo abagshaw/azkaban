@@ -20,19 +20,24 @@ package azkaban.storage;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import azkaban.db.DatabaseOperator;
 import azkaban.project.ProjectLoader;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.utils.Props;
 import java.io.File;
+import org.junit.Before;
 import org.junit.Test;
 
 
 public class DatabaseStorageTest {
 
   private final ProjectLoader projectLoader = mock(ProjectLoader.class);
-  private final DatabaseStorage databaseStorage = new DatabaseStorage(this.projectLoader);
+  private final DatabaseOperator dbOperator = mock(DatabaseOperator.class);
+  private final Props props = new Props();
+  private final DatabaseStorage databaseStorage = new DatabaseStorage(this.props, this.projectLoader, this.dbOperator);
 
   @Test
-  public void testPut() throws Exception {
+  public void testPutProject() throws Exception {
     final File file = mock(File.class);
     final int projectId = 1234;
     final int version = 1;

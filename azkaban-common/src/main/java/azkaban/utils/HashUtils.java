@@ -23,27 +23,43 @@ import java.io.IOException;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+
 
 /**
- * Helper class that will find the md5 hash for files.
+ * Helper class that will find the hashes for files.
  */
-public class Md5Hasher {
+
+public enum HashUtils {
+  MD5("MD5"),
+  SHA1("SHA1");
+
+  private String type;
 
   private static final int BYTE_BUFFER_SIZE = 1024;
 
-  private static MessageDigest getMd5Digest() {
+  HashUtils(String type) {
+    this.type = type;
+  }
+
+  public String getName() {
+    return type;
+  }
+
+  private MessageDigest getDigest() {
     MessageDigest digest = null;
     try {
-      digest = MessageDigest.getInstance("MD5");
+      digest = MessageDigest.getInstance(getName());
     } catch (final NoSuchAlgorithmException e) {
       // Should never get here.
     }
-
     return digest;
   }
 
-  public static byte[] md5Hash(final File file) throws IOException {
-    final MessageDigest digest = getMd5Digest();
+  public byte[] getHash(final File file) throws IOException {
+    final MessageDigest digest = getDigest();
 
     final FileInputStream fStream = new FileInputStream(file);
     final BufferedInputStream bStream = new BufferedInputStream(fStream);
@@ -59,6 +75,14 @@ public class Md5Hasher {
     bStream.close();
 
     return digest.digest();
+  }
+
+  public static boolean isSameHash(String a, byte[] b) throws DecoderException {
+    return isSameHash(Hex.decodeHex(a.toCharArray()), b);
+  }
+
+  public static boolean isSameHash(byte[] a, byte[] b) {
+    return Arrays.equals(a, b);
   }
 
 }

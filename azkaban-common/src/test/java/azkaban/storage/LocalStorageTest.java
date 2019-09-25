@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
-import azkaban.utils.Md5Hasher;
+import azkaban.utils.HashUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -59,12 +59,12 @@ public class LocalStorageTest {
   }
 
   @Test
-  public void testPutGetDelete() throws Exception {
+  public void testPutGetDeleteProject() throws Exception {
     final ClassLoader classLoader = getClass().getClassLoader();
     final File testFile = new File(classLoader.getResource(SAMPLE_FILE).getFile());
 
     final ProjectStorageMetadata metadata = new ProjectStorageMetadata(
-        1, 1, "testuser", Md5Hasher.md5Hash(testFile));
+        1, 1, "testuser", HashUtils.MD5.getHash(testFile));
     final String key = this.localStorage.putProject(metadata, testFile);
     assertNotNull(key);
     log.info("Key URI: " + key);
