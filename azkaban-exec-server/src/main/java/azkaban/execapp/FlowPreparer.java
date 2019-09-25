@@ -25,10 +25,12 @@ import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
 import azkaban.project.StartupDependency;
+import azkaban.spi.AzkabanException;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
+import azkaban.utils.HashUtils;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -36,6 +38,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,6 +46,7 @@ import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipFile;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -243,10 +247,14 @@ class FlowPreparer {
     final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from HDFS
-    dependencies.stream().forEach(sd -> downloadDependency(folder, sd));
+    log.info(String.format("Downloading %d JAR dependencies from HDFS...", dependencies.size()));
+    for (StartupDependency d : dependencies) {
+      downloadDependency(folder, d);
+    }
+    log.info(String.format("Finished downloading %d JAR dependencies from HDFS", dependencies.size()));
   }
 
-  private void downloadDependency(final File folder, final StartupDependency dependencyInfo) {
+  private void downloadDependency(final File folder, final StartupDependency dependencyInfo) throws IOException {
     try (InputStream is = this.storage.getDependency(dependencyInfo.file, dependencyInfo.sha1)) {
       final File file = File.createTempFile(FilenameUtils.removeExtension(dependencyInfo.file),
           FilenameUtils.getExtension(dependencyInfo.file), folder);
@@ -256,15 +264,28 @@ class FlowPreparer {
         IOUtils.copy(is, fos);
       }
 
-      /* Validate checksum */
-      validateChecksum(file, pfh);
+      /* Validate hash */
+      try {
+        validateHash(file, dependencyInfo);
+      } catch (final IOException e) {
+        throw new StorageException(e);
+      }
+    }
+  }
 
-      /* Attach file to handler */
-      pfh.setLocalFile(file);
-
-      return pfh;
-    } catch (final IOException e) {
-      throw new StorageException(e);
+  private void validateHash(final File file, final StartupDependency dependencyInfo) throws IOException {
+    try {
+      final byte[] actualFileHash = HashUtils.SHA1.getHash(file);
+      checkState(HashUtils.isSameHash(dependencyInfo.sha1, actualFileHash),
+          String.format("SHA1 Dependency hash check failed. File: %s version: %s Expected: %s Actual: %s",
+              dependencyInfo.file,
+              dependencyInfo.sha1,
+              new String(actualFileHash, StandardCharsets.UTF_8)));
+    } catch (DecoderException e) {
+      log.error(String.format("Failed to decode SHA1 hash for dependency, hash: %s, file: %s",
+          dependencyInfo.sha1,
+          dependencyInfo.file));
+      throw new RuntimeException(e);
     }
   }
 

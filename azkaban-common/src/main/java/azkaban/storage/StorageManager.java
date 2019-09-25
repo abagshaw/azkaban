@@ -188,10 +188,10 @@ public class StorageManager {
 
   private void validateChecksum(final File file, final ProjectFileHandler pfh) throws IOException {
     final byte[] hash = HashUtils.MD5.getHash(file);
-    checkState(HashUtils.isSameHash(pfh.getMd5Hash(), hash),
+    checkState(HashUtils.isSameHash(pfh.getMD5Hash(), hash),
         String.format("MD5 HASH Failed. project ID: %d version: %d Expected: %s Actual: %s",
             pfh.getProjectId(), pfh.getVersion(),
-            new String(pfh.getMd5Hash(), StandardCharsets.UTF_8),
+            new String(pfh.getMD5Hash(), StandardCharsets.UTF_8),
             new String(hash, StandardCharsets.UTF_8))
     );
   }
