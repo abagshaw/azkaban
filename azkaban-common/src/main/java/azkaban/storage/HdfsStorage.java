@@ -17,6 +17,8 @@
 
 package azkaban.storage;
 
+import static azkaban.utils.StorageUtils.createTargetDependencyFilename;
+import static azkaban.utils.StorageUtils.createTargetProjectFilename;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
@@ -30,8 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
@@ -42,7 +42,7 @@ public class HdfsStorage implements Storage {
 
   private static final Logger log = Logger.getLogger(HdfsStorage.class);
   private static final String HDFS_SCHEME = "hdfs";
-  private static final String DEPENDENCY_FOLDER = "jar_dependencies";
+  private static final String DEPENDENCY_FOLDER = "startup_dependencies";
 
   private final HdfsAuth hdfsAuth;
   private final URI rootUri;
@@ -81,7 +81,8 @@ public class HdfsStorage implements Storage {
       if (this.hdfs.mkdirs(projectsPath)) {
         log.info("Created project dir: " + projectsPath);
       }
-      final Path targetPath = createTargetProjectPath(metadata, projectsPath);
+      final Path targetPath = new Path(projectsPath,
+          createTargetProjectFilename(metadata.getProjectId(), metadata.getHash()));
       if (this.hdfs.exists(targetPath)) {
         log.info(
             String.format("Duplicate Found: meta: %s path: %s", metadata, targetPath));
@@ -99,11 +100,11 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public void putDependency(File localFile, String name, String hash) {
+  public void putDependency(File localFile, String name, String sha1) {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
-      final Path targetPath = createTargetDependencyPath(name, hash);
+      final Path targetPath = new Path(this.dependencyPath, createTargetDependencyFilename(name, sha1));
       log.info(String.format("Uploading dependency to HDFS: %s -> %s", name, targetPath));
       this.hdfs.copyFromLocalFile(new Path(localFile.getAbsolutePath()), targetPath);
     } catch (final IOException e) {
@@ -113,30 +114,13 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public InputStream getDependency(String name, String hash) throws IOException {
+  public InputStream getDependency(String name, String sha1) throws IOException {
     this.hdfsAuth.authorize();
-    return this.hdfs.open(createTargetDependencyPath(name, hash));
+    return this.hdfs.open(new Path(this.dependencyPath, createTargetDependencyFilename(name, sha1)));
   }
 
   private String getRelativePath(final Path targetPath) {
     return URI.create(this.rootUri.getPath()).relativize(targetPath.toUri()).getPath();
-  }
-
-  private Path createTargetProjectPath(final ProjectStorageMetadata metadata, final Path projectsPath) {
-    return new Path(projectsPath, String.format("%s-%s.zip",
-        String.valueOf(metadata.getProjectId()),
-        new String(Hex.encodeHex(metadata.getHash()))
-    ));
-  }
-
-  private Path createTargetDependencyPath(final String name, final String hash) {
-    // some-interesting-lib-1.0.0.jar with hash 2ac9fb2370f20df15a59438282c3ce3ca04b8d2a
-    // will get name some-interesting-lib-1.0.0-2ac9fb2370f20df15a59438282c3ce3ca04b8d2a.jar
-    return new Path(this.dependencyPath, String.format("%s-%s.%s",
-        FilenameUtils.removeExtension(name),
-        hash,
-        FilenameUtils.getExtension(name)
-    ));
   }
 
   @Override

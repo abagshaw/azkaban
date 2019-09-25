@@ -17,25 +17,15 @@
 
 package azkaban.storage;
 
-import azkaban.db.DatabaseOperator;
 import azkaban.project.ProjectFileHandler;
 import azkaban.project.ProjectLoader;
 import azkaban.spi.AzkabanException;
 import azkaban.spi.Storage;
 import azkaban.spi.ProjectStorageMetadata;
-import azkaban.utils.HashUtils;
-import azkaban.utils.Props;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.sql.SQLException;
 import javax.inject.Singleton;
 import java.io.File;
 import java.io.InputStream;
 import javax.inject.Inject;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.dbutils.ResultSetHandler;
-import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
 
 
 /**
@@ -46,25 +36,11 @@ import org.apache.log4j.Logger;
  */
 @Singleton
 public class DatabaseStorage implements Storage {
-
-  private static final Logger logger = Logger.getLogger(DatabaseStorage.class);
-
   private final ProjectLoader projectLoader;
-  private final DatabaseOperator dbOperator;
-  private final File tempDir;
-
-  final String INSERT_DEPENDENCY_FILE =
-      "INSERT INTO dependency_files (name, hash, file) values (?,?,?)";
-
-  final String SELECT_DEPENDENCY_FILE =
-      "SELECT * FROM dependency_files WHERE name=? AND hash=?";
 
   @Inject
-  public DatabaseStorage(final Props props, final ProjectLoader projectLoader, final DatabaseOperator databaseOperator) {
+  public DatabaseStorage(final ProjectLoader projectLoader) {
     this.projectLoader = projectLoader;
-    this.dbOperator = databaseOperator;
-
-    this.tempDir = new File(props.getString("project.temp.dir", "temp"));
   }
 
   @Override
@@ -89,61 +65,14 @@ public class DatabaseStorage implements Storage {
 
   @Override
   public void putDependency(final File localFile, String name, String sha1) throws AzkabanException {
-    logger.info(String
-        .format("Uploading dependency: %s [%d bytes]", name,
-            localFile.length()));
-
-    byte[] fileBytes = null;
-    try {
-      fileBytes = FileUtils.readFileToByteArray(localFile);
-    } catch (IOException e) {
-      String errorMsg = "Could not read local dependency file.";
-      logger.error(errorMsg, e);
-      throw new AzkabanException(errorMsg, e);
-    }
-
-    try {
-      this.dbOperator.update(INSERT_DEPENDENCY_FILE, name, HashUtils.stringHashToBytes(sha1), fileBytes);
-    } catch (final SQLException e) {
-      String errorMsg = "Uploading dependency failed.";
-      logger.error(errorMsg, e);
-      throw new AzkabanException(errorMsg, e);
-    } catch (final DecoderException e) {
-      String errorMsg = String.format("Decoding base64 sha1 hash failed, file: %s sha1: %s", name, sha1);
-      logger.error(errorMsg, e);
-      throw new AzkabanException(errorMsg, e);
-    }
-
-    logger.info(String.format("Finished uploading dependency: %s [%d bytes]", name,
-        localFile.length()));
+    throw new UnsupportedOperationException(
+        "Not implemented yet. Must use HdfsStorage or LocalStorage.");
   }
 
   @Override
-  public InputStream getDependency(String name, String hash) {
-    logger.info(String
-        .format("Fetching dependency: %s", name));
-
-    ResultSetHandler<byte[]> handler = rs -> {
-      if (!rs.next()) {
-        return null;
-      }
-      return rs.getBytes("file");
-    };
-
-    byte[] fileBytes;
-    try {
-      fileBytes = this.dbOperator.query(SELECT_DEPENDENCY_FILE, handler, name, hash);
-    } catch (final SQLException e) {
-      String errorMsg = "Fetching dependency failed.";
-      logger.error(errorMsg, e);
-      throw new AzkabanException(errorMsg, e);
-    }
-
-    InputStream stream = new ByteArrayInputStream(fileBytes);
-    logger.info(String.format("Finished fetching dependency: %s [%d bytes]", name,
-        fileBytes.length));
-
-    return stream;
+  public InputStream getDependency(String name, String sha1) {
+    throw new UnsupportedOperationException(
+        "Not implemented yet. Must use HdfsStorage or LocalStorage.");
   }
 
   @Override

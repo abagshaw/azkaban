@@ -17,6 +17,9 @@
 
 package azkaban.storage;
 
+
+import static azkaban.utils.StorageUtils.createTargetProjectFilename;
+import static azkaban.utils.StorageUtils.createTargetDependencyFilename;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import azkaban.AzkabanCommonModuleConfig;
@@ -30,34 +33,38 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-
 
 @Singleton
 public class LocalStorage implements Storage {
 
   private static final Logger log = Logger.getLogger(LocalStorage.class);
 
+  private static final String DEPENDENCY_FOLDER = "startup_dependencies";
+
   final File rootDirectory;
+  final File dependencyDirectory;
 
   @Inject
   public LocalStorage(final AzkabanCommonModuleConfig config) {
-    this.rootDirectory = validateRootDirectory(
-        createIfDoesNotExist(config.getLocalStorageBaseDirPath()));
+    this.rootDirectory = validateDirectory(createIfDoesNotExist(config.getLocalStorageBaseDirPath()));
+    this.dependencyDirectory = validateDirectory(createIfDoesNotExist(new File(this.rootDirectory, DEPENDENCY_FOLDER)));
   }
 
-  private static File createIfDoesNotExist(final String baseDirectoryPath) {
-    final File baseDirectory = new File(baseDirectoryPath);
+  private static File createIfDoesNotExist(final File baseDirectory) {
     if (!baseDirectory.exists()) {
-      baseDirectory.mkdir();
+      baseDirectory.mkdirs();
       log.info("Creating dir: " + baseDirectory.getAbsolutePath());
     }
     return baseDirectory;
   }
 
-  private static File validateRootDirectory(final File baseDirectory) {
+  private static File createIfDoesNotExist(final String baseDirectoryPath) {
+    return createIfDoesNotExist(new File(baseDirectoryPath));
+  }
+
+  private static File validateDirectory(final File baseDirectory) {
     checkArgument(baseDirectory.isDirectory());
     if (!FileIOUtils.isDirWritable(baseDirectory)) {
       throw new IllegalArgumentException("Directory not writable: " + baseDirectory);
@@ -65,7 +72,7 @@ public class LocalStorage implements Storage {
     return baseDirectory;
   }
 
-  private File getFile(final String key) {
+  private File getFileInRoot(final String key) {
     return new File(this.rootDirectory, key);
   }
 
@@ -74,7 +81,7 @@ public class LocalStorage implements Storage {
    */
   @Override
   public InputStream getProject(final String key) throws IOException {
-    return new FileInputStream(getFile(key));
+    return new FileInputStream(getFileInRoot(key));
   }
 
   @Override
@@ -83,10 +90,8 @@ public class LocalStorage implements Storage {
     if (projectDir.mkdir()) {
       log.info("Created project dir: " + projectDir.getAbsolutePath());
     }
-
-    final File targetFile = new File(projectDir, String.format("%s-%s.zip",
-        String.valueOf(metadata.getProjectId()),
-        new String(Hex.encodeHex(metadata.getHash()))));
+    final File targetFile = new File(projectDir,
+        createTargetProjectFilename(metadata.getProjectId(), metadata.getHash()));
 
     if (targetFile.exists()) {
       log.info(String.format("Duplicate found: meta: %s, targetFile: %s, ", metadata,
@@ -98,22 +103,29 @@ public class LocalStorage implements Storage {
     try {
       FileUtils.copyFile(localFile, targetFile);
     } catch (final IOException e) {
-      log.error("LocalStorage error in put(): meta: " + metadata);
+      log.error("LocalStorage error in putProject(): meta: " + metadata);
       throw new StorageException(e);
     }
     return getRelativePath(targetFile);
   }
 
   @Override
-  public void putDependency(File localFile, String name, String hash) {
-    throw new UnsupportedOperationException(
-        "Not implemented yet.");
+  public void putDependency(File localFile, String name, String sha1) {
+    final File targetFile = new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1));
+
+    // Copy file to storage dir
+    try {
+      FileUtils.copyFile(localFile, targetFile);
+    } catch (final IOException e) {
+      log.error("LocalStorage error in putDependency(): name: " + name);
+      throw new StorageException(e);
+    }
   }
 
   @Override
-  public InputStream getDependency(String name, String hash) {
-    throw new UnsupportedOperationException(
-        "Not implemented yet.");
+  public InputStream getDependency(String name, String sha1) throws IOException {
+    final File targetFile = new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1));
+    return new FileInputStream(targetFile);
   }
 
   private String getRelativePath(final File targetFile) {
@@ -122,7 +134,7 @@ public class LocalStorage implements Storage {
 
   @Override
   public boolean delete(final String key) {
-    final File file = getFile(key);
+    final File file = getFileInRoot(key);
     final boolean result = file.exists() && file.delete();
     if (result) {
       log.warn("Deleted file: " + file.getAbsolutePath());
