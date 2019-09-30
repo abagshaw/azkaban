@@ -104,7 +104,7 @@ public class HdfsStorage implements Storage {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
-      final Path targetPath = new Path(this.dependencyPath, createTargetDependencyFilename(name, sha1));
+      final Path targetPath = getDependencyPath(name, sha1);
       log.info(String.format("Uploading dependency to HDFS: %s -> %s", name, targetPath));
       this.hdfs.copyFromLocalFile(new Path(localFile.getAbsolutePath()), targetPath);
     } catch (final IOException e) {
@@ -116,7 +116,17 @@ public class HdfsStorage implements Storage {
   @Override
   public InputStream getDependency(String name, String sha1) throws IOException {
     this.hdfsAuth.authorize();
-    return this.hdfs.open(new Path(this.dependencyPath, createTargetDependencyFilename(name, sha1)));
+    return this.hdfs.open(getDependencyPath(name, sha1));
+  }
+
+  @Override
+  public boolean existsDependency(String name, String sha1) {
+    this.hdfsAuth.authorize();
+    return this.hdfs.exists(getDependencyPath(name, sha1));
+  }
+
+  private Path getDependencyPath(String name, String sha1) {
+    return new Path(this.dependencyPath, createTargetDependencyFilename(name, sha1));
   }
 
   private String getRelativePath(final Path targetPath) {

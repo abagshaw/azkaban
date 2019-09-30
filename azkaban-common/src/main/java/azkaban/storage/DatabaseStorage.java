@@ -76,6 +76,12 @@ public class DatabaseStorage implements Storage {
   }
 
   @Override
+  public boolean existsDependency(String name, String sha1) {
+    throw new UnsupportedOperationException(
+        "Not implemented yet. Must use HdfsStorage or LocalStorage.");
+  }
+
+  @Override
   public boolean delete(final String key) {
     throw new UnsupportedOperationException("Delete is not supported");
   }

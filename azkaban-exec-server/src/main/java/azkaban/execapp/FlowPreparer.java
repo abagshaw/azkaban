@@ -35,6 +35,7 @@ import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -270,6 +271,9 @@ class FlowPreparer {
       } catch (final IOException e) {
         throw new StorageException(e);
       }
+    } catch (FileNotFoundException e) {
+      log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.file, e);
+      throw e;
     }
   }
 
@@ -277,12 +281,12 @@ class FlowPreparer {
     try {
       final byte[] actualFileHash = HashUtils.SHA1.getHash(file);
       checkState(HashUtils.isSameHash(dependencyInfo.sha1, actualFileHash),
-          String.format("SHA1 Dependency hash check failed. File: %s version: %s Expected: %s Actual: %s",
+          String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
               dependencyInfo.file,
               dependencyInfo.sha1,
               new String(actualFileHash, StandardCharsets.UTF_8)));
     } catch (DecoderException e) {
-      log.error(String.format("Failed to decode SHA1 hash for dependency, hash: %s, file: %s",
+      log.error(String.format("Failed to decode SHA1 hash for dependency, SHA1: %s, file: %s",
           dependencyInfo.sha1,
           dependencyInfo.file));
       throw new RuntimeException(e);

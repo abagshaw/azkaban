@@ -23,4 +23,13 @@ public class ThinArchiveUtils {
         .stream().map(StartupDependency::fromMap)
         .collect(Collectors.toList());
   }
+
+  public static String getArtifactoryUrlForDependency(StartupDependency d) {
+    String[] coordinateParts = d.ivyCoordinates.split(":");
+    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/"
+        + coordinateParts[0].replace(".", "/") + "/"
+        + coordinateParts[1] + "/"
+        + coordinateParts[2] + "/"
+        + d.file;
+  }
 }
