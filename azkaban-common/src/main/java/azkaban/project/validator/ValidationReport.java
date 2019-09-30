@@ -13,6 +13,7 @@ import java.util.Set;
 public class ValidationReport {
 
   protected ValidationStatus _status;
+  protected boolean _bundleModified;
   protected Set<String> _infoMsgs;
   protected Set<String> _warningMsgs;
   protected Set<String> _errorMsgs;
@@ -119,4 +120,14 @@ public class ValidationReport {
   public Set<String> getErrorMsgs() {
     return this._errorMsgs;
   }
+
+  /**
+   * Set whether or not any files were deleted or modified in the bundle.
+   */
+  public void setBundleModified(boolean modified) { this._bundleModified = modified; }
+
+  /**
+   * Get whether or not any files were deleted or modified in the bundle.
+   */
+  public boolean getBundleModified() { return this._bundleModified; }
 }
