@@ -1,10 +1,14 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
+import azkaban.project.validator.ValidatorConfigs;
+import azkaban.project.validator.ValidatorManager;
+import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
 import azkaban.utils.Props;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -34,40 +38,52 @@ public class ArchiveUnthinner {
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File archive, final File folder, final File startupDependencies, final Props prop)
+      final File archive, final File projectFolder, final File startupDependencies, final Props prop)
       throws ProjectManagerException {
 
+    List<StartupDependency> dependencies;
     try {
-      final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
-
-      // Download the files from artifactory
-      final List<StartupDependency> newDependencies =
-          dependencies.stream().filter(this::mustDownloadDependency).collect(Collectors.toList());
-
-      for (StartupDependency d : dependencies) {
-        ensureDependencyPersisted(d);
-        if (dependenciesOnHDFS.contains(d)) {
-          continue;
-        }
-
-        File downloadedJar = new File(folder, d.destination + File.separator + d.file);
-
-        String toDownload = getArtifactoryUrlForDependency(d);
-
-        ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
-        FileOutputStream fileOS = new FileOutputStream(downloadedJar);
-        FileChannel writeChannel = fileOS.getChannel();
-        writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
-
-        this.storage.putDependency(downloadedJar, d.file, d.sha1);
-      }
-
-
-    } catch (Exception e) {
+      dependencies = parseStartupDependencies(startupDependencies);
+    } catch (IOException e) {
       throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
     }
 
-    return validateProject(project, archive, folder, prop);
+    // Filter the dependencies down to only the new dependencies that need downloading
+    final List<StartupDependency> newDependencies =
+        dependencies.stream().filter(this::mustDownloadDependency).collect(Collectors.toList());
+
+    // Download the new dependencies
+    final List<File> downloadedDependencyFiles =
+        newDependencies.stream().map(d -> downloadDependency(projectFolder, d)).collect(Collectors.toList());
+
+    return runValidator(project, archive, projectFolder, prop);
+  }
+
+  private Map<String, ValidationReport> runValidator(final Project project,
+      final File archive, final File folder, final Props prop) {
+    prop.put(ValidatorConfigs.PROJECT_ARCHIVE_FILE_PATH,
+        archive.getAbsolutePath());
+    // Basically, we want to make sure that for different invocations to the
+    // uploadProject method,
+    // the validators are using different values for the
+    // PROJECT_ARCHIVE_FILE_PATH configuration key.
+    // In addition, we want to reload the validator objects for each upload, so
+    // that we can change the validator configuration files without having to
+    // restart Azkaban web server. If the XmlValidatorManager is an instance
+    // variable, 2 consecutive invocations to the uploadProject
+    // method might cause the second one to overwrite the
+    // PROJECT_ARCHIVE_FILE_PATH configuration parameter
+    // of the first, thus causing a wrong archive file path to be passed to the
+    // validators. Creating a separate XmlValidatorManager object for each
+    // upload will prevent this issue without having to add
+    // synchronization between uploads. Since we're already reloading the XML
+    // config file and creating validator objects for each upload, this does
+    // not add too much additional overhead.
+    final ValidatorManager validatorManager = new XmlValidatorManager(prop);
+    log.info("Validating project " + archive.getName()
+        + " using the registered validators "
+        + validatorManager.getValidatorsInfo().toString());
+    return validatorManager.validate(project, folder);
   }
 
   private boolean mustDownloadDependency(final StartupDependency d) {
@@ -82,7 +98,30 @@ public class ArchiveUnthinner {
       return false;
     }
 
-    // We couldn't find this dependency, so we must download it.
+    // We couldn't find this dependency, so we must download it locally, validate it
+    // then persist it in storage.
     return true;
+  }
+
+  private File downloadDependency(final File projectFolder, final StartupDependency d) {
+    File downloadedJar = new File(projectFolder, d.destination + File.separator + d.file);
+    FileChannel writeChannel;
+    try {
+      downloadedJar.createNewFile();
+      FileOutputStream fileOS = new FileOutputStream(downloadedJar);
+      writeChannel = fileOS.getChannel();
+    } catch (IOException e) {
+      throw new ProjectManagerException(String.format("In preparation for downloading, failed to create empty file %s", downloadedJar.getAbsolutePath()), e);
+    }
+
+    try {
+      String toDownload = getArtifactoryUrlForDependency(d);
+      ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
+      writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
+    } catch (Exception e) {
+      throw new ProjectManagerException(String.format("Error while downloading dependency %s", d.file), e);
+    }
+
+    return downloadedJar;
   }
 }
