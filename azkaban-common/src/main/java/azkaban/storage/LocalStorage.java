@@ -124,8 +124,17 @@ public class LocalStorage implements Storage {
 
   @Override
   public InputStream getDependency(String name, String sha1) throws IOException {
-    final File targetFile = new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1));
+    final File targetFile = getDependencyFile(name, sha1);
     return new FileInputStream(targetFile);
+  }
+
+  @Override
+  public boolean existsDependency(String name, String sha1) throws IOException {
+    return getDependencyFile(name, sha1).exists();
+  }
+
+  private File getDependencyFile(String name, String sha1) {
+    return new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1))
   }
 
   private String getRelativePath(final File targetFile) {

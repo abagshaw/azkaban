@@ -44,12 +44,7 @@ import azkaban.utils.Pair;
 import azkaban.utils.Props;
 import azkaban.utils.Utils;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,8 +65,6 @@ class AzkabanProjectLoader {
 
   private static final Logger log = LoggerFactory.getLogger(AzkabanProjectLoader.class);
   private static final String DIRECTORY_FLOW_REPORT_KEY = "Directory Flow";
-
-  private static final String SELECT_DEPENDENCY_CACHE_ENTRY_BY_HASH = "SELECT * FROM dependencies WHERE hash = ?";
 
   private final Props props;
 
@@ -130,7 +123,7 @@ class AzkabanProjectLoader {
       folder = unzipProject(archive, fileType);
 
       File startupDependencies = getStartupDependenciesFile(folder);
-      reports = startupDependencies.exists() ? validateAndPersistDependencies(project, archive, folder,
+      reports = startupDependencies.exists() ? validateProjectAndPersistDependencies(project, archive, folder,
                                                 startupDependencies, prop)
                                              : validateProject(project, archive, folder, prop);
 
@@ -173,69 +166,6 @@ class AzkabanProjectLoader {
       throw new ProjectManagerException("Error unzipping file.", e);
     }
     return file;
-  }
-
-  private Map<String, ValidationReport> validateAndPersistDependencies(final Project project,
-      final File archive, final File folder, final File startupDependencies, final Props prop)
-      throws ProjectManagerException {
-
-    try {
-      final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
-
-      ResultSetHandler<String> handler = rs -> {
-        if (!rs.next()) {
-          return null;
-        }
-        return rs.getString("name");
-      };
-
-      final SQLTransaction<List<String>> transaction = transOperator -> {
-        List<String> queries = new ArrayList<>();
-        for (StartupDependency d : dependencies) {
-          queries.add(transOperator.query(SELECT_DEPENDENCY_CACHE_ENTRY_BY_HASH, handler, d.sha1));
-        }
-        return queries;
-      };
-
-      final List<String> res = this.dbOperator.transaction(transaction);
-
-
-      // Download the files from artifactory
-      File jarsLocation = Utils.createTempDir(this.tempDir);
-
-      for (StartupDependency d : dependencies) {
-        if (res.contains(d.file)) {
-          continue;
-        }
-
-        File downloadedJar = File.createTempFile(FilenameUtils.removeExtension(d.file),
-            FilenameUtils.getExtension(d.file),
-            jarsLocation);
-
-        String toDownload = getArtifactoryUrlFromIvyCoordinates(d.ivyCoordinates, d.file);
-
-        ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
-        FileOutputStream fileOS = new FileOutputStream(downloadedJar);
-        FileChannel writeChannel = fileOS.getChannel();
-        writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
-
-        this.storage.putDependency(downloadedJar, d.file, d.sha1);
-      }
-
-
-    } catch (Exception e) {
-      throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
-    }
-
-
-
-
-    return validateProject(project, archive, folder, prop);
-  }
-
-  private String getArtifactoryUrlFromIvyCoordinates(String ivyCoordinate, String fileName) {
-    String[] coordinateParts = ivyCoordinate.split(":");
-    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/" + coordinateParts[0].replace(".", "/") + "/" + coordinateParts[1] + "/" + coordinateParts[2] + "/" + fileName;
   }
 
   private Map<String, ValidationReport> validateProject(final Project project,

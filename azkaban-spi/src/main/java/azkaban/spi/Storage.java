@@ -53,7 +53,9 @@ public interface Storage {
 
   void putDependency(File localFile, String name, String hash);
 
-  InputStream getDependency(String name, String hash) throws IOException;
+  InputStream getDependency(String name, String sha1) throws IOException;
+
+  boolean existsDependency(String name, String sha1);
 
   /**
    * Delete an object from Storage.
