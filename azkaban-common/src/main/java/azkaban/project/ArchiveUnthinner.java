@@ -154,8 +154,7 @@ public class ArchiveUnthinner {
           + d.getFileName(), e);
     }
 
-    // We couldn't find this dependency, so we must download it locally, validate it
-    // then persist it in storage.
+    // We couldn't find this dependency in storage, it must be downloaded from artifactory
     return true;
   }
 
@@ -168,7 +167,7 @@ public class ArchiveUnthinner {
     FileChannel writeChannel;
     try {
       downloadedJar.createNewFile();
-      FileOutputStream fileOS = new FileOutputStream(downloadedJar);
+      FileOutputStream fileOS = new FileOutputStream(downloadedJar, false);
       writeChannel = fileOS.getChannel();
     } catch (IOException e) {
       throw new ProjectManagerException("In preparation for downloading, failed to create destination file " +
@@ -189,6 +188,9 @@ public class ArchiveUnthinner {
     try {
       validateDependencyHash(downloadedJar, d);
     } catch (HashNotMatchException e) {
+      if (retries < MAX_DEPENDENCY_DOWNLOAD_RETRIES) {
+        return downloadDependency(projectFolder, d, retries + 1);
+      }
       throw new ProjectManagerException(e.getMessage());
     }
 
