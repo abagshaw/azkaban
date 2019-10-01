@@ -35,7 +35,7 @@ public class ArchiveUnthinner {
 
   private final Set<StartupDependencyDetails> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();
 
-  private class StartupDependencyFile {
+  private static class StartupDependencyFile {
     private final File file;
     private final StartupDependencyDetails details;
 
@@ -54,7 +54,7 @@ public class ArchiveUnthinner {
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File archive, final File projectFolder, final File startupDependenciesFile, final Props prop)
+      final File projectArchive, final File projectFolder, final File startupDependenciesFile, final Props prop)
       throws ProjectManagerException {
 
     List<StartupDependencyDetails> dependencies;
@@ -82,7 +82,7 @@ public class ArchiveUnthinner {
         newDependencies.stream().map(d -> new StartupDependencyFile(downloadDependency(projectFolder, d), d))
             .collect(Collectors.toList());
 
-    Map<String, ValidationReport> reports = runValidator(project, archive, projectFolder, prop);
+    Map<String, ValidationReport> reports = runValidator(project, projectFolder, prop);
     List<StartupDependencyFile> unmodifiedDependencyFiles = new ArrayList<>();
     // Check if any files were deleted or modified in the bundle
     if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
@@ -98,12 +98,12 @@ public class ArchiveUnthinner {
         }
       }
 
-      // Modify
-
+      // Get the final list of startup dependencies that will be downloadable from storage
       List<StartupDependencyDetails> finalDependencies =
           ListUtils.union(
               unmodifiedDependencyFiles.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()),
               existingDependencies);
+      // Write this list back to the startup-dependencies.json file
       try {
         writeStartupDependencies(startupDependenciesFile, finalDependencies);
       } catch (IOException e) {
@@ -126,30 +126,12 @@ public class ArchiveUnthinner {
   }
 
   private Map<String, ValidationReport> runValidator(final Project project,
-      final File archive, final File folder, final Props prop) {
-    prop.put(ValidatorConfigs.PROJECT_ARCHIVE_FILE_PATH,
-        archive.getAbsolutePath());
-    // Basically, we want to make sure that for different invocations to the
-    // uploadProject method,
-    // the validators are using different values for the
-    // PROJECT_ARCHIVE_FILE_PATH configuration key.
-    // In addition, we want to reload the validator objects for each upload, so
-    // that we can change the validator configuration files without having to
-    // restart Azkaban web server. If the XmlValidatorManager is an instance
-    // variable, 2 consecutive invocations to the uploadProject
-    // method might cause the second one to overwrite the
-    // PROJECT_ARCHIVE_FILE_PATH configuration parameter
-    // of the first, thus causing a wrong archive file path to be passed to the
-    // validators. Creating a separate XmlValidatorManager object for each
-    // upload will prevent this issue without having to add
-    // synchronization between uploads. Since we're already reloading the XML
-    // config file and creating validator objects for each upload, this does
-    // not add too much additional overhead.
+      final File projectFolder, final Props prop) {
     final ValidatorManager validatorManager = new XmlValidatorManager(prop);
-    log.info("Validating project (with thinArchive) " + archive.getName()
+    log.info("Validating project (with thinArchive) " + project.getName()
         + " using the registered validators "
         + validatorManager.getValidatorsInfo().toString());
-    return validatorManager.validate(project, folder);
+    return validatorManager.validate(project, projectFolder);
   }
 
   private boolean mustDownloadDependency(final StartupDependencyDetails d) {
@@ -158,10 +140,15 @@ public class ArchiveUnthinner {
     if (dependenciesOnHDFS.contains(d)) return false;
 
     // Check if the dependency exists in storage
-    if (this.storage.existsDependency(d.getFileName(), d.getSHA1())) {
-      // It does, so we need to update our in-memory cache list
-      dependenciesOnHDFS.add(d);
-      return false;
+    try {
+      if (this.storage.existsDependency(d.getFileName(), d.getSHA1())) {
+        // It does, so we need to update our in-memory cache list
+        dependenciesOnHDFS.add(d);
+        return false;
+      }
+    } catch (IOException e) {
+      throw new ProjectManagerException("Unable to check for existence of dependency in storage: "
+          + d.getFileName(), e);
     }
 
     // We couldn't find this dependency, so we must download it locally, validate it
@@ -177,7 +164,8 @@ public class ArchiveUnthinner {
       FileOutputStream fileOS = new FileOutputStream(downloadedJar);
       writeChannel = fileOS.getChannel();
     } catch (IOException e) {
-      throw new ProjectManagerException(String.format("In preparation for downloading, failed to create destination file %s", downloadedJar.getAbsolutePath()), e);
+      throw new ProjectManagerException("In preparation for downloading, failed to create destination file " +
+              downloadedJar.getAbsolutePath(), e);
     }
 
     try {
@@ -185,7 +173,7 @@ public class ArchiveUnthinner {
       ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
       writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
     } catch (Exception e) {
-      throw new ProjectManagerException(String.format("Error while downloading dependency %s", d.getFileName()), e);
+      throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
     }
 
     return downloadedJar;

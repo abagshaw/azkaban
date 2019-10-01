@@ -126,7 +126,7 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public boolean existsDependency(String name, String sha1) {
+  public boolean existsDependency(String name, String sha1) throws IOException {
     this.hdfsAuth.authorize();
     return this.hdfs.exists(getDependencyPath(name, sha1));
   }

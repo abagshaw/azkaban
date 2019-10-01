@@ -41,6 +41,7 @@ public class ProjectManagerTest {
   private ExecutorLoader executorLoader;
   private DatabaseOperator dbOperator;
   private Storage storage;
+  private ArchiveUnthinner archiveUnthinner;
 
   @Before
   public void setUp() throws Exception {
@@ -50,10 +51,12 @@ public class ProjectManagerTest {
     this.executorLoader = mock(ExecutorLoader.class);
     this.dbOperator = mock(DatabaseOperator.class);
     this.storage = mock(Storage.class);
+    this.archiveUnthinner = mock(ArchiveUnthinner.class);
+
     this.azkabanProjectLoader = new AzkabanProjectLoader(this.props, this.projectLoader,
-        this.storageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator, storage);
-    this.manager = new ProjectManager(this.azkabanProjectLoader, this.projectLoader,
-        this.storageManager, this.props);
+        this.storageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator, storage, this.archiveUnthinner);
+
+    this.manager = new ProjectManager(this.azkabanProjectLoader, this.projectLoader, this.storageManager, this.props);
   }
 
   @Test

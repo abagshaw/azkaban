@@ -23,12 +23,12 @@ import static java.util.Objects.requireNonNull;
 import azkaban.Constants;
 import azkaban.Constants.ConfigurationKeys;
 import azkaban.db.DatabaseOperator;
-import azkaban.db.SQLTransaction;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutionReference;
 import azkaban.executor.ExecutorLoader;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.flow.Flow;
+import azkaban.project.ArchiveUnthinner;
 import azkaban.project.FlowLoaderUtils.DirFilter;
 import azkaban.project.FlowLoaderUtils.SuffixFilter;
 import azkaban.project.ProjectLogEvent.EventType;
@@ -72,6 +72,7 @@ class AzkabanProjectLoader {
   private final StorageManager storageManager;
   private final FlowLoaderFactory flowLoaderFactory;
   private final DatabaseOperator dbOperator;
+  private final ArchiveUnthinner archiveUnthinner;
   private final File tempDir;
   private final int projectVersionRetention;
   private final ExecutorLoader executorLoader;
@@ -81,7 +82,7 @@ class AzkabanProjectLoader {
   AzkabanProjectLoader(final Props props, final ProjectLoader projectLoader,
       final StorageManager storageManager, final FlowLoaderFactory flowLoaderFactory,
       final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator,
-      final Storage storage) {
+      final Storage storage, final ArchiveUnthinner archiveUnthinner) {
     this.props = requireNonNull(props, "Props is null");
     this.projectLoader = requireNonNull(projectLoader, "project Loader is null");
     this.storageManager = requireNonNull(storageManager, "Storage Manager is null");
@@ -89,6 +90,7 @@ class AzkabanProjectLoader {
 
     this.dbOperator = databaseOperator;
     this.storage = storage;
+    this.archiveUnthinner = archiveUnthinner;
 
     this.tempDir = new File(props.getString(ConfigurationKeys.PROJECT_TEMP_DIR, "temp"));
     this.executorLoader = executorLoader;
@@ -123,9 +125,9 @@ class AzkabanProjectLoader {
       folder = unzipProject(archive, fileType);
 
       File startupDependencies = getStartupDependenciesFile(folder);
-      reports = startupDependencies.exists() ? validateProjectAndPersistDependencies(project, archive, folder,
-                                                startupDependencies, prop)
-                                             : validateProject(project, archive, folder, prop);
+      reports = startupDependencies.exists()
+          ? archiveUnthinner.validateProjectAndPersistDependencies(project, archive, folder, startupDependencies, prop)
+          : validateProject(project, archive, folder, prop);
 
       loader = this.flowLoaderFactory.createFlowLoader(folder);
       reports.put(DIRECTORY_FLOW_REPORT_KEY, loader.loadProjectFlow(project, folder));
