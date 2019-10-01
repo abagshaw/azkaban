@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
@@ -107,6 +108,11 @@ public class HdfsStorage implements Storage {
       final Path targetPath = getDependencyPath(name, sha1);
       log.info(String.format("Uploading dependency to HDFS: %s -> %s", name, targetPath));
       this.hdfs.copyFromLocalFile(new Path(localFile.getAbsolutePath()), targetPath);
+    } catch (final FileAlreadyExistsException e) {
+      // Either the file already exists, or another webserver process is uploading it
+      // Either way, we can assume that the dependency will be present on HDFS and we don't
+      // need to worry about persisting it.
+      log.info("Upload stopped. Dependency already exists in HDFS: " + name);
     } catch (final IOException e) {
       log.error("Error uploading dependency to HDFS: " + name);
       throw new StorageException(e);

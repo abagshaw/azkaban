@@ -51,7 +51,7 @@ public interface Storage {
    */
   String putProject(ProjectStorageMetadata metadata, File localFile);
 
-  void putDependency(File localFile, String name, String hash);
+  void putDependency(File localFile, String name, String sha1);
 
   InputStream getDependency(String name, String sha1) throws IOException;
 

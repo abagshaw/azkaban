@@ -25,8 +25,7 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
-import azkaban.project.StartupDependency;
-import azkaban.spi.AzkabanException;
+import azkaban.project.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.storage.StorageManager;
@@ -50,7 +49,6 @@ import java.util.Optional;
 import java.util.zip.ZipFile;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -246,20 +244,20 @@ class FlowPreparer {
    * @throws IOException if downloading JARs or reading startup-dependencies.json fails
    */
   private void downloadAllDependencies(final File folder, final File startupDependencies) throws IOException {
-    final List<StartupDependency> dependencies = parseStartupDependencies(startupDependencies);
+    final List<StartupDependencyDetails> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from HDFS
     log.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
-    for (StartupDependency d : dependencies) {
+    for (StartupDependencyDetails d : dependencies) {
       downloadDependency(folder, d);
     }
     log.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
   }
 
-  private void downloadDependency(final File folder, final StartupDependency dependencyInfo) throws IOException {
-    try (InputStream is = this.storage.getDependency(dependencyInfo.file, dependencyInfo.sha1)) {
-      final File file = File.createTempFile(FilenameUtils.removeExtension(dependencyInfo.file),
-          FilenameUtils.getExtension(dependencyInfo.file), folder);
+  private void downloadDependency(final File folder, final StartupDependencyDetails dependencyInfo) throws IOException {
+    try (InputStream is = this.storage.getDependency(dependencyInfo.getFileName(), dependencyInfo.getSHA1())) {
+      final File file = new File(folder, dependencyInfo.getFileName());
+      file.createNewFile();
 
       /* Copy from storage to output stream */
       try (FileOutputStream fos = new FileOutputStream(file)) {
@@ -273,23 +271,23 @@ class FlowPreparer {
         throw new StorageException(e);
       }
     } catch (FileNotFoundException e) {
-      log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.file, e);
+      log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.getFileName(), e);
       throw e;
     }
   }
 
-  private void validateHash(final File file, final StartupDependency dependencyInfo) throws IOException {
+  private void validateHash(final File file, final StartupDependencyDetails dependencyInfo) throws IOException {
     try {
       final byte[] actualFileHash = HashUtils.SHA1.getHash(file);
-      checkState(HashUtils.isSameHash(dependencyInfo.sha1, actualFileHash),
+      checkState(HashUtils.isSameHash(dependencyInfo.getSHA1(), actualFileHash),
           String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
-              dependencyInfo.file,
-              dependencyInfo.sha1,
+              dependencyInfo.getFileName(),
+              dependencyInfo.getSHA1(),
               new String(actualFileHash, StandardCharsets.UTF_8)));
     } catch (DecoderException e) {
       log.error(String.format("Failed to decode SHA1 hash for dependency, SHA1: %s, file: %s",
-          dependencyInfo.sha1,
-          dependencyInfo.file));
+          dependencyInfo.getSHA1(),
+          dependencyInfo.getFileName()));
       throw new RuntimeException(e);
     }
   }
