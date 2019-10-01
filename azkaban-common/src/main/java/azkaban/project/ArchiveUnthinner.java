@@ -8,6 +8,7 @@ import azkaban.spi.Storage;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
+import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -22,7 +23,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
-import org.apache.commons.codec.DecoderException;
 import org.apache.commons.collections.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +35,7 @@ public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
   private final Storage storage;
+  private final ValidatorUtils validatorUtils;
 
   private final Set<StartupDependencyDetails> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();
 
@@ -52,8 +53,9 @@ public class ArchiveUnthinner {
   }
 
   @Inject
-  public ArchiveUnthinner(final Storage storage) {
+  public ArchiveUnthinner(final Storage storage, final ValidatorUtils validatorUtils) {
     this.storage = storage;
+    this.validatorUtils = validatorUtils;
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,

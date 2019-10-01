@@ -39,6 +39,7 @@ import azkaban.test.executions.ExecutionsTestUtil;
 import azkaban.user.User;
 import azkaban.utils.Pair;
 import azkaban.utils.Props;
+import azkaban.utils.ValidatorUtils;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URL;
@@ -70,6 +71,7 @@ public class AzkabanProjectLoaderTest {
   private DatabaseOperator dbOperator;
   private Storage storage;
   private ArchiveUnthinner archiveUnthinner;
+  private ValidatorUtils validatorUtils;
 
   @Before
   public void setUp() throws Exception {
@@ -81,11 +83,12 @@ public class AzkabanProjectLoaderTest {
     this.executorLoader = mock(ExecutorLoader.class);
     this.dbOperator = mock(DatabaseOperator.class);
     this.archiveUnthinner = mock(ArchiveUnthinner.class);
+    this.validatorUtils = mock(ValidatorUtils.class);
     this.storage = mock(Storage.class);
 
     this.azkabanProjectLoader = new AzkabanProjectLoader(props, this.projectLoader,
         this.storageManager, new FlowLoaderFactory(props), this.executorLoader, this.dbOperator, this.storage,
-        this.archiveUnthinner);
+        this.archiveUnthinner, this.validatorUtils);
   }
 
   @Test
