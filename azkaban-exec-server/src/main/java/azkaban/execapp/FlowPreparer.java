@@ -24,11 +24,13 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
+import azkaban.project.ProjectManagerException;
 import azkaban.project.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
+import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
@@ -264,30 +266,10 @@ class FlowPreparer {
       }
 
       /* Validate hash */
-      try {
-        validateHash(file, dependencyInfo);
-      } catch (final IOException e) {
-        throw new StorageException(e);
-      }
+      validateDependencyHash(file, dependencyInfo);
     } catch (FileNotFoundException e) {
       log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.getFileName(), e);
       throw e;
-    }
-  }
-
-  private void validateHash(final File file, final StartupDependencyDetails dependencyInfo) throws IOException {
-    try {
-      final byte[] actualFileHash = HashUtils.SHA1.getHash(file);
-      checkState(HashUtils.isSameHash(dependencyInfo.getSHA1(), actualFileHash),
-          String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
-              dependencyInfo.getFileName(),
-              dependencyInfo.getSHA1(),
-              new String(actualFileHash, StandardCharsets.UTF_8)));
-    } catch (DecoderException e) {
-      log.error(String.format("Failed to decode SHA1 hash for dependency, SHA1: %s, file: %s",
-          dependencyInfo.getSHA1(),
-          dependencyInfo.getFileName()));
-      throw new RuntimeException(e);
     }
   }
 

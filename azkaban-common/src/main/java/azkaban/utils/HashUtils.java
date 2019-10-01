@@ -89,4 +89,7 @@ public enum HashUtils {
     return Hex.decodeHex(a.toCharArray());
   }
 
+  public static String bytesHashToString(byte[] a) {
+    return String.valueOf(Hex.encodeHex(a)).toLowerCase();
+  }
 }

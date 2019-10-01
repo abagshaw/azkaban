@@ -29,4 +29,9 @@ public class HashUtilsTest {
     assertTrue(HashUtils.isSameHash(ZIP_SHA1_BASE64_STRING, ZIP_SHA1_BYTES));
   }
 
+  @Test
+  public void stringToBytesToString() throws Exception {
+    assertEquals(ZIP_MD5_BASE64_STRING.toLowerCase(),
+        HashUtils.bytesHashToString(HashUtils.stringHashToBytes(ZIP_MD5_BASE64_STRING)));
+  }
 }
