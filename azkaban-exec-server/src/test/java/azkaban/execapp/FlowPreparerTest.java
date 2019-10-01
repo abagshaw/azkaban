@@ -33,6 +33,7 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
+import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
 import java.io.File;
@@ -59,6 +60,7 @@ public class FlowPreparerTest {
   private File executionsDir;
   private File projectsDir;
   private FlowPreparer instance;
+  private Storage storage;
 
   private StorageManager createMockStorageManager() {
     final ClassLoader classLoader = getClass().getClassLoader();
@@ -87,9 +89,11 @@ public class FlowPreparerTest {
     this.executionsDir = this.temporaryFolder.newFolder("executions");
     this.projectsDir = this.temporaryFolder.newFolder("projects");
 
+    this.storage = mock(Storage.class);
+
     this.instance = spy(
         new FlowPreparer(createMockStorageManager(), this.executionsDir, this.projectsDir, null,
-            new ProjectCacheHitRatio()));
+            new ProjectCacheHitRatio(), this.storage));
     doNothing().when(this.instance).updateLastModifiedTime(any());
   }
 

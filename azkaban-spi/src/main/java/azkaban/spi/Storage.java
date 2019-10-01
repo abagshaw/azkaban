@@ -55,7 +55,7 @@ public interface Storage {
 
   InputStream getDependency(String name, String sha1) throws IOException;
 
-  boolean existsDependency(String name, String sha1);
+  boolean existsDependency(String name, String sha1) throws IOException;
 
   /**
    * Delete an object from Storage.

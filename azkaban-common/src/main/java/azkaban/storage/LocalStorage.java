@@ -134,7 +134,7 @@ public class LocalStorage implements Storage {
   }
 
   private File getDependencyFile(String name, String sha1) {
-    return new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1))
+    return new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1));
   }
 
   private String getRelativePath(final File targetFile) {

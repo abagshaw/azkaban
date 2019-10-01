@@ -36,7 +36,7 @@ public enum HashUtils {
   MD5("MD5"),
   SHA1("SHA1");
 
-  private String type;
+  private final String type;
 
   private static final int BYTE_BUFFER_SIZE = 1024;
 
