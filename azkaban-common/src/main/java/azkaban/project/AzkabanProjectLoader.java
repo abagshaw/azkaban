@@ -28,7 +28,6 @@ import azkaban.executor.ExecutionReference;
 import azkaban.executor.ExecutorLoader;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.flow.Flow;
-import azkaban.project.ArchiveUnthinner;
 import azkaban.project.FlowLoaderUtils.DirFilter;
 import azkaban.project.FlowLoaderUtils.SuffixFilter;
 import azkaban.project.ProjectLogEvent.EventType;
@@ -43,6 +42,7 @@ import azkaban.user.User;
 import azkaban.utils.Pair;
 import azkaban.utils.Props;
 import azkaban.utils.Utils;
+import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,9 +52,6 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.zip.ZipFile;
 import javax.inject.Inject;
-import org.apache.commons.dbutils.ResultSetHandler;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,13 +73,15 @@ class AzkabanProjectLoader {
   private final File tempDir;
   private final int projectVersionRetention;
   private final ExecutorLoader executorLoader;
+  private final ValidatorUtils validatorUtils;
   private final Storage storage;
 
   @Inject
   AzkabanProjectLoader(final Props props, final ProjectLoader projectLoader,
       final StorageManager storageManager, final FlowLoaderFactory flowLoaderFactory,
       final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator,
-      final Storage storage, final ArchiveUnthinner archiveUnthinner) {
+      final Storage storage, final ArchiveUnthinner archiveUnthinner,
+      final ValidatorUtils validatorUtils) {
     this.props = requireNonNull(props, "Props is null");
     this.projectLoader = requireNonNull(projectLoader, "project Loader is null");
     this.storageManager = requireNonNull(storageManager, "Storage Manager is null");
@@ -91,6 +90,7 @@ class AzkabanProjectLoader {
     this.dbOperator = databaseOperator;
     this.storage = storage;
     this.archiveUnthinner = archiveUnthinner;
+    this.validatorUtils = validatorUtils;
 
     this.tempDir = new File(props.getString(ConfigurationKeys.PROJECT_TEMP_DIR, "temp"));
     this.executorLoader = executorLoader;
@@ -174,27 +174,7 @@ class AzkabanProjectLoader {
       final File archive, final File folder, final Props prop) {
     prop.put(ValidatorConfigs.PROJECT_ARCHIVE_FILE_PATH,
         archive.getAbsolutePath());
-    // Basically, we want to make sure that for different invocations to the
-    // uploadProject method,
-    // the validators are using different values for the
-    // PROJECT_ARCHIVE_FILE_PATH configuration key.
-    // In addition, we want to reload the validator objects for each upload, so
-    // that we can change the validator configuration files without having to
-    // restart Azkaban web server. If the XmlValidatorManager is an instance
-    // variable, 2 consecutive invocations to the uploadProject
-    // method might cause the second one to overwrite the
-    // PROJECT_ARCHIVE_FILE_PATH configuration parameter
-    // of the first, thus causing a wrong archive file path to be passed to the
-    // validators. Creating a separate XmlValidatorManager object for each
-    // upload will prevent this issue without having to add
-    // synchronization between uploads. Since we're already reloading the XML
-    // config file and creating validator objects for each upload, this does
-    // not add too much additional overhead.
-    final ValidatorManager validatorManager = new XmlValidatorManager(prop);
-    log.info("Validating project " + archive.getName()
-        + " using the registered validators "
-        + validatorManager.getValidatorsInfo().toString());
-    return validatorManager.validate(project, folder);
+    return this.validatorUtils.validateProject(project, folder, prop);
   }
 
   private boolean isReportStatusValid(final Map<String, ValidationReport> reports,
