@@ -5,6 +5,7 @@ import azkaban.project.validator.ValidatorConfigs;
 import azkaban.project.validator.ValidatorManager;
 import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
+import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
 import java.io.File;
@@ -21,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.collections.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,7 @@ import static azkaban.utils.ThinArchiveUtils.*;
 
 
 public class ArchiveUnthinner {
+  private static final int MAX_DEPENDENCY_DOWNLOAD_RETRIES = 1;
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
   private final Storage storage;
@@ -157,6 +160,10 @@ public class ArchiveUnthinner {
   }
 
   private File downloadDependency(final File projectFolder, final StartupDependencyDetails d) {
+    return downloadDependency(projectFolder, d, 0);
+  }
+
+  private File downloadDependency(final File projectFolder, final StartupDependencyDetails d, int retries) {
     File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
     FileChannel writeChannel;
     try {
@@ -172,8 +179,17 @@ public class ArchiveUnthinner {
       String toDownload = getArtifactoryUrlForDependency(d);
       ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
       writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
-    } catch (Exception e) {
+    } catch (IOException e) {
+      if (retries < MAX_DEPENDENCY_DOWNLOAD_RETRIES) {
+        return downloadDependency(projectFolder, d, retries + 1);
+      }
       throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
+    }
+
+    try {
+      validateDependencyHash(downloadedJar, d);
+    } catch (HashNotMatchException e) {
+      throw new ProjectManagerException(e.getMessage());
     }
 
     return downloadedJar;
