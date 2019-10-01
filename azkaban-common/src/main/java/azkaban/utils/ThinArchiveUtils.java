@@ -1,6 +1,6 @@
 package azkaban.utils;
 
-import azkaban.project.StartupDependency;
+import azkaban.project.StartupDependencyDetails;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -15,21 +15,28 @@ public class ThinArchiveUtils {
     return new File(folder.getPath() + "/app-meta/startup-dependencies.json");
   }
 
-  public static List<StartupDependency> parseStartupDependencies(final File startupDependencies) throws IOException {
-    final String rawJson = FileUtils.readFileToString(startupDependencies);
+  public static List<StartupDependencyDetails> parseStartupDependencies(final File f) throws IOException {
+    final String rawJson = FileUtils.readFileToString(f);
     return ((HashMap<String, List<Map<String, String>>>)
         JSONUtils.parseJSONFromString(rawJson))
         .get("dependencies")
-        .stream().map(StartupDependency::fromMap)
+        .stream().map(StartupDependencyDetails::new)
         .collect(Collectors.toList());
   }
 
-  public static String getArtifactoryUrlForDependency(StartupDependency d) {
-    String[] coordinateParts = d.ivyCoordinates.split(":");
+  public static void writeStartupDependencies(final File f,
+      final List<StartupDependencyDetails> dependencies) throws IOException {
+    Map<String, List<StartupDependencyDetails>> outputFormat = new HashMap<>();
+    outputFormat.put("dependencies", dependencies);
+    FileUtils.writeStringToFile(f, JSONUtils.toJSON(outputFormat));
+  }
+
+  public static String getArtifactoryUrlForDependency(StartupDependencyDetails d) {
+    String[] coordinateParts = d.getIvyCoordinates().split(":");
     return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/"
         + coordinateParts[0].replace(".", "/") + "/"
         + coordinateParts[1] + "/"
         + coordinateParts[2] + "/"
-        + d.file;
+        + d.getFileName();
   }
 }

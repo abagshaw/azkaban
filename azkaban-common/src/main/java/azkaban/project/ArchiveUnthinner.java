@@ -5,6 +5,7 @@ import azkaban.project.validator.ValidatorConfigs;
 import azkaban.project.validator.ValidatorManager;
 import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
+import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -13,12 +14,14 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
+import org.apache.commons.collections.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +33,20 @@ public class ArchiveUnthinner {
 
   private final Storage storage;
 
-  private final Set<StartupDependency> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();;
+  private final Set<StartupDependencyDetails> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();
+
+  private class StartupDependencyFile {
+    private final File file;
+    private final StartupDependencyDetails details;
+
+    public StartupDependencyFile(File f, StartupDependencyDetails sd) {
+      this.file = f;
+      this.details = sd;
+    }
+
+    public File getFile() { return file; }
+    public StartupDependencyDetails getDetails() { return details; }
+  }
 
   @Inject
   public ArchiveUnthinner(final Storage storage) {
@@ -38,25 +54,75 @@ public class ArchiveUnthinner {
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File archive, final File projectFolder, final File startupDependencies, final Props prop)
+      final File archive, final File projectFolder, final File startupDependenciesFile, final Props prop)
       throws ProjectManagerException {
 
-    List<StartupDependency> dependencies;
+    List<StartupDependencyDetails> dependencies;
     try {
-      dependencies = parseStartupDependencies(startupDependencies);
+      dependencies = parseStartupDependencies(startupDependenciesFile);
     } catch (IOException e) {
       throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
     }
 
-    // Filter the dependencies down to only the new dependencies that need downloading
-    final List<StartupDependency> newDependencies =
-        dependencies.stream().filter(this::mustDownloadDependency).collect(Collectors.toList());
+    // existingDependencies: dependencies that are already in storage and verified
+    List<StartupDependencyDetails> existingDependencies = new ArrayList<>();
+    // newDependencies: dependencies that are not in storage and need to be verified
+    List<StartupDependencyDetails> newDependencies = new ArrayList<>();
+
+    for (StartupDependencyDetails d : dependencies) {
+      if (mustDownloadDependency(d)) {
+        newDependencies.add(d);
+      } else {
+        existingDependencies.add(d);
+      }
+    }
 
     // Download the new dependencies
-    final List<File> downloadedDependencyFiles =
-        newDependencies.stream().map(d -> downloadDependency(projectFolder, d)).collect(Collectors.toList());
+    final List<StartupDependencyFile> downloadedDependencyFiles =
+        newDependencies.stream().map(d -> new StartupDependencyFile(downloadDependency(projectFolder, d), d))
+            .collect(Collectors.toList());
 
-    return runValidator(project, archive, projectFolder, prop);
+    Map<String, ValidationReport> reports = runValidator(project, archive, projectFolder, prop);
+    List<StartupDependencyFile> unmodifiedDependencyFiles = new ArrayList<>();
+    // Check if any files were deleted or modified in the bundle
+    if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
+      // At least one file was deleted or modified in the bundle
+      // We need to figure out which ones were modified and which weren't
+      for (StartupDependencyFile f : downloadedDependencyFiles) {
+        try {
+          if (f.getFile().exists() && HashUtils.isSameHash(f.getDetails().getSHA1(), HashUtils.SHA1.getHash(f.getFile()))) {
+            unmodifiedDependencyFiles.add(f);
+          }
+        } catch (Exception e) {
+          throw new ProjectManagerException("Error while checking modified files during project validation.", e);
+        }
+      }
+
+      // Modify
+
+      List<StartupDependencyDetails> finalDependencies =
+          ListUtils.union(
+              unmodifiedDependencyFiles.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()),
+              existingDependencies);
+      try {
+        writeStartupDependencies(startupDependenciesFile, finalDependencies);
+      } catch (IOException e) {
+        throw new ProjectManagerException("Error while writing new startup-dependencies.json", e);
+      }
+    } else {
+      // No files were deleted or modified in the bundle, so all files are unmodified
+      unmodifiedDependencyFiles = downloadedDependencyFiles;
+    }
+
+    // Loop through unmodified dependency files, persist them in storage, then delete them
+    // from the project directory - they do not need to be included in the thin archive because
+    // they can be downloaded from storage when needed.
+    for (StartupDependencyFile f : unmodifiedDependencyFiles) {
+      this.storage.putDependency(f.getFile(), f.getDetails().getFileName(), f.getDetails().getSHA1());
+      f.getFile().delete();
+    }
+
+    return reports;
   }
 
   private Map<String, ValidationReport> runValidator(final Project project,
@@ -80,19 +146,19 @@ public class ArchiveUnthinner {
     // config file and creating validator objects for each upload, this does
     // not add too much additional overhead.
     final ValidatorManager validatorManager = new XmlValidatorManager(prop);
-    log.info("Validating project " + archive.getName()
+    log.info("Validating project (with thinArchive) " + archive.getName()
         + " using the registered validators "
         + validatorManager.getValidatorsInfo().toString());
     return validatorManager.validate(project, folder);
   }
 
-  private boolean mustDownloadDependency(final StartupDependency d) {
+  private boolean mustDownloadDependency(final StartupDependencyDetails d) {
     // See if our in-memory cache of dependencies in storage already has this dependency listed
     // If it does, no need to download! It must already be in storage.
     if (dependenciesOnHDFS.contains(d)) return false;
 
     // Check if the dependency exists in storage
-    if (this.storage.existsDependency(d.file, d.sha1)) {
+    if (this.storage.existsDependency(d.getFileName(), d.getSHA1())) {
       // It does, so we need to update our in-memory cache list
       dependenciesOnHDFS.add(d);
       return false;
@@ -103,15 +169,15 @@ public class ArchiveUnthinner {
     return true;
   }
 
-  private File downloadDependency(final File projectFolder, final StartupDependency d) {
-    File downloadedJar = new File(projectFolder, d.destination + File.separator + d.file);
+  private File downloadDependency(final File projectFolder, final StartupDependencyDetails d) {
+    File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
     FileChannel writeChannel;
     try {
       downloadedJar.createNewFile();
       FileOutputStream fileOS = new FileOutputStream(downloadedJar);
       writeChannel = fileOS.getChannel();
     } catch (IOException e) {
-      throw new ProjectManagerException(String.format("In preparation for downloading, failed to create empty file %s", downloadedJar.getAbsolutePath()), e);
+      throw new ProjectManagerException(String.format("In preparation for downloading, failed to create destination file %s", downloadedJar.getAbsolutePath()), e);
     }
 
     try {
@@ -119,7 +185,7 @@ public class ArchiveUnthinner {
       ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
       writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
     } catch (Exception e) {
-      throw new ProjectManagerException(String.format("Error while downloading dependency %s", d.file), e);
+      throw new ProjectManagerException(String.format("Error while downloading dependency %s", d.getFileName()), e);
     }
 
     return downloadedJar;

@@ -20,6 +20,7 @@ public class ValidationReport {
 
   public ValidationReport() {
     this._status = ValidationStatus.PASS;
+    this._bundleModified = false;
     this._infoMsgs = new HashSet<>();
     this._warningMsgs = new HashSet<>();
     this._errorMsgs = new HashSet<>();
