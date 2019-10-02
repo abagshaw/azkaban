@@ -11,15 +11,19 @@ public class StartupDependencyDetails {
   private final String ivyCoordinates;
   private final String sha1;
 
-  public StartupDependencyDetails(Map<String, String> m) {
-    this.file = m.get("file");
-    this.destination = m.get("destination");
-    this.type = m.get("type");
-    this.ivyCoordinates = m.get("ivyCoordinates");
-    this.sha1 = m.get("sha1");
+  public StartupDependencyDetails(String file, String destination, String type, String ivyCoordinates, String sha1) {
+    this.file = file;
+    this.destination = destination;
+    this.type = type;
+    this.ivyCoordinates = ivyCoordinates;
+    this.sha1 = sha1;
   }
 
-  public String getFileName() { return file; }
+  public StartupDependencyDetails(Map<String, String> m) {
+    this(m.get("file"), m.get("destination"), m.get("type"), m.get("ivyCoordinates"), m.get("sha1"));
+  }
+
+  public String getFile() { return file; }
   public String getDestination() { return destination; }
   public String getType() { return type; }
   public String getIvyCoordinates() { return ivyCoordinates; }

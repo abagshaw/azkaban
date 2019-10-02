@@ -18,7 +18,6 @@
 package azkaban.project;
 
 import azkaban.spi.Storage;
-import azkaban.utils.ValidatorUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,14 +36,12 @@ public class ArchiveUnthinnerTest {
 
   private ArchiveUnthinner archiveUnthinner;
   private Storage storage;
-  private ValidatorUtils validatorUtils;
 
   @Before
   public void setUp() throws Exception {
-    this.validatorUtils = mock(ValidatorUtils.class);
     this.storage = mock(Storage.class);
 
-    this.archiveUnthinner = new ArchiveUnthinner(this.storage, this.validatorUtils);
+    this.archiveUnthinner = new ArchiveUnthinner(this.storage);
   }
 
   @Test

@@ -38,7 +38,7 @@ public class ThinArchiveUtils {
         + coordinateParts[0].replace(".", "/") + "/"
         + coordinateParts[1] + "/"
         + coordinateParts[2] + "/"
-        + d.getFileName();
+        + d.getFile();
   }
 
   public static void validateDependencyHash(final File dependencyFile, final StartupDependencyDetails dependencyInfo)
@@ -47,7 +47,7 @@ public class ThinArchiveUtils {
       final byte[] actualFileHash = HashUtils.SHA1.getHash(dependencyFile);
       if (!HashUtils.isSameHash(dependencyInfo.getSHA1(), actualFileHash)) {
         throw new HashNotMatchException(String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
-            dependencyInfo.getFileName(),
+            dependencyInfo.getFile(),
             dependencyInfo.getSHA1(),
             HashUtils.bytesHashToString(actualFileHash)));
       }

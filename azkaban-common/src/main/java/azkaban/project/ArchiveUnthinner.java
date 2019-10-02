@@ -1,14 +1,12 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
-import azkaban.project.validator.ValidatorConfigs;
 import azkaban.project.validator.ValidatorManager;
 import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
-import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,7 +33,6 @@ public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
   private final Storage storage;
-  private final ValidatorUtils validatorUtils;
 
   private final Set<StartupDependencyDetails> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();
 
@@ -53,9 +50,8 @@ public class ArchiveUnthinner {
   }
 
   @Inject
-  public ArchiveUnthinner(final Storage storage, final ValidatorUtils validatorUtils) {
+  public ArchiveUnthinner(final Storage storage) {
     this.storage = storage;
-    this.validatorUtils = validatorUtils;
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
@@ -123,7 +119,7 @@ public class ArchiveUnthinner {
     // from the project directory - they do not need to be included in the thin archive because
     // they can be downloaded from storage when needed.
     for (StartupDependencyFile f : unmodifiedDependencyFiles) {
-      this.storage.putDependency(f.getFile(), f.getDetails().getFileName(), f.getDetails().getSHA1());
+      this.storage.putDependency(f.getFile(), f.getDetails().getFile(), f.getDetails().getSHA1());
       f.getFile().delete();
     }
 
@@ -146,14 +142,14 @@ public class ArchiveUnthinner {
 
     // Check if the dependency exists in storage
     try {
-      if (this.storage.existsDependency(d.getFileName(), d.getSHA1())) {
+      if (this.storage.existsDependency(d.getFile(), d.getSHA1())) {
         // It does, so we need to update our in-memory cache list
         dependenciesOnHDFS.add(d);
         return false;
       }
     } catch (IOException e) {
       throw new ProjectManagerException("Unable to check for existence of dependency in storage: "
-          + d.getFileName(), e);
+          + d.getFile(), e);
     }
 
     // We couldn't find this dependency in storage, it must be downloaded from artifactory
@@ -165,7 +161,7 @@ public class ArchiveUnthinner {
   }
 
   private File downloadDependency(final File projectFolder, final StartupDependencyDetails d, int retries) {
-    File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
+    File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
     FileChannel writeChannel;
     try {
       downloadedJar.createNewFile();
@@ -184,7 +180,7 @@ public class ArchiveUnthinner {
       if (retries < MAX_DEPENDENCY_DOWNLOAD_RETRIES) {
         return downloadDependency(projectFolder, d, retries + 1);
       }
-      throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
+      throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
     }
 
     try {
