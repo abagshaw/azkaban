@@ -24,14 +24,10 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
-import azkaban.project.ProjectManagerException;
 import azkaban.project.StartupDependencyDetails;
 import azkaban.spi.Storage;
-import azkaban.spi.StorageException;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
-import azkaban.utils.HashNotMatchException;
-import azkaban.utils.HashUtils;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -40,7 +36,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,7 +43,6 @@ import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipFile;
-import org.apache.commons.codec.DecoderException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
@@ -256,9 +250,9 @@ class FlowPreparer {
   }
 
   private void downloadDependency(final File folder, final StartupDependencyDetails dependencyInfo) throws IOException {
-    try (InputStream is = this.storage.getDependency(dependencyInfo.getFileName(), dependencyInfo.getSHA1())) {
+    try (InputStream is = this.storage.getDependency(dependencyInfo.getFile(), dependencyInfo.getSHA1())) {
       final File file = new File(folder,
-          dependencyInfo.getDestination() + File.separator + dependencyInfo.getFileName());
+          dependencyInfo.getDestination() + File.separator + dependencyInfo.getFile());
       file.createNewFile();
 
       /* Copy from storage to output stream */
@@ -269,7 +263,7 @@ class FlowPreparer {
       /* Validate hash */
       validateDependencyHash(file, dependencyInfo);
     } catch (FileNotFoundException e) {
-      log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.getFileName(), e);
+      log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.getFile(), e);
       throw e;
     }
   }
