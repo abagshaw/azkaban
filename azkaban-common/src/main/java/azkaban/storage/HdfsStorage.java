@@ -40,7 +40,6 @@ import org.apache.log4j.Logger;
 
 @Singleton
 public class HdfsStorage implements Storage {
-
   private static final Logger log = Logger.getLogger(HdfsStorage.class);
   private static final String HDFS_SCHEME = "hdfs";
   public static final String DEPENDENCY_FOLDER = "startup_dependencies";
