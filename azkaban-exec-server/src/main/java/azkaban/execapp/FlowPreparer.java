@@ -240,7 +240,7 @@ class FlowPreparer {
   }
 
   /**
-   * Download nessecary JAR dependencies from HDFS as specified in archive's /app-meta/startup-dependencies.json
+   * Download nessecary JAR dependencies from storage as specified in archive's /app-meta/startup-dependencies.json
    *
    * @param folder root of unzipped project
    * @throws IOException if downloading JARs or reading startup-dependencies.json fails
@@ -248,7 +248,7 @@ class FlowPreparer {
   private void downloadAllDependencies(final File folder, final File startupDependencies) throws IOException {
     final List<StartupDependencyDetails> dependencies = parseStartupDependencies(startupDependencies);
 
-    // Download each of the dependencies from HDFS
+    // Download each of the dependencies from storage
     log.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
     for (StartupDependencyDetails d : dependencies) {
       downloadDependency(folder, d);

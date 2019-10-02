@@ -52,6 +52,7 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.zip.ZipFile;
 import javax.inject.Inject;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,8 +127,13 @@ class AzkabanProjectLoader {
 
       File startupDependencies = getStartupDependenciesFile(folder);
       reports = startupDependencies.exists()
-          ? archiveUnthinner.validateProjectAndPersistDependencies(project, archive, folder, startupDependencies, prop)
-          : validateProject(project, archive, folder, prop);
+          ? this.archiveUnthinner.validateProjectAndPersistDependencies(project, folder, startupDependencies, prop)
+          : this.validatorUtils.validateProject(project, folder, prop);
+
+      // If the project folder has been modified, update the project zip
+      if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
+        updateProjectZip(archive, folder);
+      }
 
       loader = this.flowLoaderFactory.createFlowLoader(folder);
       reports.put(DIRECTORY_FLOW_REPORT_KEY, loader.loadProjectFlow(project, folder));
@@ -151,6 +157,18 @@ class AzkabanProjectLoader {
     return reports;
   }
 
+  private void updateProjectZip(final File zipFile, final File folder) {
+    try {
+      File newZipFile = new File(zipFile.getAbsolutePath().concat(".byte-ray.new"));
+      Utils.zipFolderContent(folder, newZipFile);
+      FileUtils.deleteQuietly(zipFile);
+      FileUtils.moveFile(newZipFile, zipFile);
+    } catch (IOException e) {
+      folder.deleteOnExit();
+      throw new ProjectManagerException("Error when generating the modified zip.", e);
+    }
+  }
+
   private File unzipProject(final File archive, final String fileType)
       throws ProjectManagerException {
     final File file;
@@ -168,13 +186,6 @@ class AzkabanProjectLoader {
       throw new ProjectManagerException("Error unzipping file.", e);
     }
     return file;
-  }
-
-  private Map<String, ValidationReport> validateProject(final Project project,
-      final File archive, final File folder, final Props prop) {
-    prop.put(ValidatorConfigs.PROJECT_ARCHIVE_FILE_PATH,
-        archive.getAbsolutePath());
-    return this.validatorUtils.validateProject(project, folder, prop);
   }
 
   private boolean isReportStatusValid(final Map<String, ValidationReport> reports,
