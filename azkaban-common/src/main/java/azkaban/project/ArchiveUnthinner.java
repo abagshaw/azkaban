@@ -59,7 +59,7 @@ public class ArchiveUnthinner {
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File projectArchive, final File projectFolder, final File startupDependenciesFile, final Props prop)
+      final File projectFolder, final File startupDependenciesFile, final Props prop)
       throws ProjectManagerException {
 
     List<StartupDependencyDetails> dependencies;

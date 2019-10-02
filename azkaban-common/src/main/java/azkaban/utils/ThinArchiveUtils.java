@@ -10,8 +10,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.io.FileUtils;
 
-import static com.google.common.base.Preconditions.*;
-
 
 public class ThinArchiveUtils {
   public static File getStartupDependenciesFile(final File folder) {
