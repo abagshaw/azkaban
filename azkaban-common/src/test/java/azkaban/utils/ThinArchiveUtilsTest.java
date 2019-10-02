@@ -36,6 +36,9 @@ public class ThinArchiveUtilsTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
+  // The SHA1 of an empty file
+  public final String SHA1_EMPTY_FILE = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+
   public StartupDependencyDetails depA;
   public StartupDependencyDetails depB;
   public List<StartupDependencyDetails> depList;
@@ -82,15 +85,15 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
-  public void getStartupDependenciesFile() throws Exception {
+  public void testGetStartupDependenciesFile() throws Exception {
     File someFolder = TEMP_DIR.newFolder("someproject");
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(someFolder);
 
-    assertEquals("/some/random/project/app-meta/startup-dependencies.json", startupDependenciesFile.getAbsolutePath());
+    assertEquals(someFolder.getAbsolutePath() + "/app-meta/startup-dependencies.json", startupDependenciesFile.getAbsolutePath());
   }
 
   @Test
-  public void writeStartupDependencies() throws Exception {
+  public void testWriteStartupDependencies() throws Exception {
     File outFile = TEMP_DIR.newFile("startup-dependencies.json");
     ThinArchiveUtils.writeStartupDependencies(outFile, depList);
 
@@ -99,7 +102,7 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
-  public void readStartupDependencies() throws Exception {
+  public void testReadStartupDependencies() throws Exception {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
     FileUtils.writeStringToFile(inFile, rawJSON);
 
@@ -108,7 +111,7 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
-  public void getArtifactoryUrlForDependency() throws Exception {
+  public void testGetArtifactoryUrlForDependency() throws Exception {
     String generatedURL = ThinArchiveUtils.getArtifactoryUrlForDependency(depA);
 
     assertEquals(
@@ -117,23 +120,22 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
-  public void validateDependencyHashValid() throws Exception {
+  public void testValidateDependencyHashValid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
-    String depFileHash = HashUtils.bytesHashToString(HashUtils.SHA1.getHash(depFile));
 
     StartupDependencyDetails details = new StartupDependencyDetails(
         "dep.jar",
         "lib",
         "jar",
         "com.linkedin.test:blahblah:1.0.1",
-        depFileHash);
+        SHA1_EMPTY_FILE);
 
     // This should complete without an exception
     ThinArchiveUtils.validateDependencyHash(depFile, details);
   }
 
   @Test(expected = HashNotMatchException.class)
-  public void validateDependencyHashInvalid() throws Exception {
+  public void testValidateDependencyHashInvalid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
     String depFileHash = HashUtils.bytesHashToString(HashUtils.SHA1.getHash(depFile));
 
