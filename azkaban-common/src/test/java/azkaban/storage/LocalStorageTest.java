@@ -17,26 +17,35 @@
 
 package azkaban.storage;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.utils.HashUtils;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 
 public class LocalStorageTest {
+  @Rule
+  public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
   static final String SAMPLE_FILE = "sample_flow_01.zip";
   static final String LOCAL_STORAGE = "LOCAL_STORAGE";
@@ -99,5 +108,28 @@ public class LocalStorageTest {
       exceptionThrown = true;
     }
     assertTrue(exceptionThrown);
+  }
+
+  @Test
+  public void testPutGetExistsDependency() throws Exception {
+    final String testContent = "abcd123";
+    final File tmpJar = TEMP_DIR.newFile("a.jar");
+    FileUtils.writeStringToFile(tmpJar, testContent);
+
+    this.localStorage.putDependency(tmpJar, "a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    final File expectedTargetFile = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER +
+        File.separator + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar");
+
+    assertTrue(expectedTargetFile.exists());
+
+    final InputStream is =
+        this.localStorage.getDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+
+    BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+    String fileContent = br.lines().collect(Collectors.joining(System.lineSeparator()));
+
+    assertEquals(testContent, fileContent);
+
+    assertTrue(this.localStorage.existsDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709"));
   }
 }

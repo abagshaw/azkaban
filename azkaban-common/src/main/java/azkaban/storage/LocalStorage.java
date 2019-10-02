@@ -38,10 +38,9 @@ import org.apache.log4j.Logger;
 
 @Singleton
 public class LocalStorage implements Storage {
-
   private static final Logger log = Logger.getLogger(LocalStorage.class);
 
-  private static final String DEPENDENCY_FOLDER = "startup_dependencies";
+  public static final String DEPENDENCY_FOLDER = "startup_dependencies";
 
   final File rootDirectory;
   final File dependencyDirectory;
