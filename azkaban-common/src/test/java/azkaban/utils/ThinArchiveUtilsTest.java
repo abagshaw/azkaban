@@ -18,13 +18,10 @@
 package azkaban.utils;
 
 import azkaban.project.StartupDependencyDetails;
+import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
-import org.json.JSONObject;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -35,54 +32,6 @@ import static org.junit.Assert.*;
 public class ThinArchiveUtilsTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
-
-  // The SHA1 of an empty file
-  public final String SHA1_EMPTY_FILE = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
-
-  public StartupDependencyDetails depA;
-  public StartupDependencyDetails depB;
-  public List<StartupDependencyDetails> depList;
-  public String rawJSON;
-
-  @Before
-  public void setup() {
-    depA = new StartupDependencyDetails(
-        "a.jar",
-        "lib",
-        "jar",
-        "com.linkedin.test:testera:1.0.1",
-        "73f018101ec807672cd3b06d5d7a0fc48f54428f");
-
-    depB = new StartupDependencyDetails(
-        "b.jar",
-        "lib",
-        "jar",
-        "com.linkedin.test:testerb:1.0.1",
-        "c4ea0f854975e24faf5bb404e8d77915e312e8ab");
-
-    depList = Arrays.asList(depA, depB);
-
-    rawJSON =
-        "{" +
-        "    \"dependencies\": [" +
-        "        {" +
-        "            \"sha1\": \"73f018101ec807672cd3b06d5d7a0fc48f54428f\"," +
-        "            \"file\": \"a.jar\"," +
-        "            \"destination\": \"lib\"," +
-        "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testera:1.0.1\"" +
-        "        }," +
-        "        {" +
-        "            \"sha1\": \"c4ea0f854975e24faf5bb404e8d77915e312e8ab\"," +
-        "            \"file\": \"b.jar\"," +
-        "            \"destination\": \"lib\"," +
-        "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testerb:1.0.1\"" +
-        "        }" +
-        "    ]" +
-        "}";
-
-  }
 
   @Test
   public void testGetStartupDependenciesFile() throws Exception {
@@ -95,24 +44,24 @@ public class ThinArchiveUtilsTest {
   @Test
   public void testWriteStartupDependencies() throws Exception {
     File outFile = TEMP_DIR.newFile("startup-dependencies.json");
-    ThinArchiveUtils.writeStartupDependencies(outFile, depList);
+    ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestSampleData.getDepList());
 
     String writtenJSON = FileUtils.readFileToString(outFile);
-    JSONAssert.assertEquals(rawJSON, writtenJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), writtenJSON, false);
   }
 
   @Test
   public void testReadStartupDependencies() throws Exception {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
-    FileUtils.writeStringToFile(inFile, rawJSON);
+    FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSON());
 
     List<StartupDependencyDetails> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
-    assertEquals(depList, parsedDependencies);
+    assertEquals(ThinArchiveTestSampleData.getDepList(), parsedDependencies);
   }
 
   @Test
   public void testGetArtifactoryUrlForDependency() throws Exception {
-    String generatedURL = ThinArchiveUtils.getArtifactoryUrlForDependency(depA);
+    String generatedURL = ThinArchiveUtils.getArtifactoryUrlForDependency(ThinArchiveTestSampleData.getDepA());
 
     assertEquals(
         "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/com/linkedin/test/testera/1.0.1/a.jar",
@@ -122,16 +71,10 @@ public class ThinArchiveUtilsTest {
   @Test
   public void testValidateDependencyHashValid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
-
-    StartupDependencyDetails details = new StartupDependencyDetails(
-        "dep.jar",
-        "lib",
-        "jar",
-        "com.linkedin.test:blahblah:1.0.1",
-        SHA1_EMPTY_FILE);
+    FileUtils.writeStringToFile(depFile, ThinArchiveTestSampleData.getDepAContent());
 
     // This should complete without an exception
-    ThinArchiveUtils.validateDependencyHash(depFile, details);
+    ThinArchiveUtils.validateDependencyHash(depFile, ThinArchiveTestSampleData.getDepA());
   }
 
   @Test(expected = HashNotMatchException.class)

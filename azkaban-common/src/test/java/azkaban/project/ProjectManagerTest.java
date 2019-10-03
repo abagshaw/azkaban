@@ -54,7 +54,7 @@ public class ProjectManagerTest {
     this.dbOperator = mock(DatabaseOperator.class);
     this.storage = mock(Storage.class);
     this.archiveUnthinner = mock(ArchiveUnthinner.class);
-    this.validatorUtils = mock(ValidatorUtils.class)
+    this.validatorUtils = mock(ValidatorUtils.class);
 
     this.azkabanProjectLoader = new AzkabanProjectLoader(this.props, this.projectLoader,
         this.storageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator, storage, this.archiveUnthinner,

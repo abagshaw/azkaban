@@ -18,6 +18,7 @@
 package azkaban.project;
 
 import azkaban.spi.Storage;
+import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
@@ -40,26 +41,6 @@ public class ArchiveUnthinnerTest {
   private ValidatorUtils validatorUtils;
   private Storage storage;
 
-  private String SAMPLE_STARTUP_DEPENDENCIES =
-      "{" +
-          "    \"dependencies\": [" +
-          "        {" +
-          "            \"sha1\": \"73f018101ec807672cd3b06d5d7a0fc48f54428f\"," +
-          "            \"file\": \"a.jar\"," +
-          "            \"destination\": \"lib\"," +
-          "            \"type\": \"jar\"," +
-          "            \"ivyCoordinates\": \"com.linkedin.test:testera:1.0.1\"" +
-          "        }," +
-          "        {" +
-          "            \"sha1\": \"c4ea0f854975e24faf5bb404e8d77915e312e8ab\"," +
-          "            \"file\": \"b.jar\"," +
-          "            \"destination\": \"lib\"," +
-          "            \"type\": \"jar\"," +
-          "            \"ivyCoordinates\": \"com.linkedin.test:testerb:1.0.1\"" +
-          "        }" +
-          "    ]" +
-          "}";
-
   @Before
   public void setUp() throws Exception {
     this.storage = mock(Storage.class);
@@ -75,9 +56,10 @@ public class ArchiveUnthinnerTest {
     libFolder.mkdirs();
     File appMetaFolder = new File(projectFolder, "app-meta");
     libFolder.mkdirs();
-    FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
+    FileUtils.writeStringToFile(new File(libFolder, ThinArchiveTestSampleData.getDepA().getFile()),
+        ThinArchiveTestSampleData.getDepAContent());
     FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
-        SAMPLE_STARTUP_DEPENDENCIES);
+        ThinArchiveTestSampleData.getRawJSON());
   }
 
   @Test
