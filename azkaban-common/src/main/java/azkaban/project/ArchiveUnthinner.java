@@ -2,7 +2,7 @@ package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
 import azkaban.spi.Storage;
-import azkaban.utils.ArtifactoryDownloader;
+import azkaban.utils.ArtifactoryDownloaderUtils;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.ValidatorUtils;
@@ -123,7 +123,7 @@ public class ArchiveUnthinner {
     for (StartupDependencyDetails d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
       try {
-        ArtifactoryDownloader.downloadDependency(downloadedJar, d);
+        ArtifactoryDownloaderUtils.downloadDependency(downloadedJar, d);
       } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
       }

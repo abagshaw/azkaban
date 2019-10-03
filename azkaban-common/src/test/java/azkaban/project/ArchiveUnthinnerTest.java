@@ -19,7 +19,7 @@ package azkaban.project;
 
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
-import azkaban.utils.ArtifactoryDownloader;
+import azkaban.utils.ArtifactoryDownloaderUtils;
 import azkaban.utils.FileDownloaderUtils;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
@@ -41,7 +41,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ArtifactoryDownloader.class)
+@PrepareForTest(ArtifactoryDownloaderUtils.class)
 public class ArchiveUnthinnerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
@@ -100,7 +100,7 @@ public class ArchiveUnthinnerTest {
 
       FileUtils.writeStringToFile(destFile, contentToWrite);
       return null;
-    }).when(ArtifactoryDownloader.class, "downloadDependency",
+    }).when(ArtifactoryDownloaderUtils.class, "downloadDependency",
         Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the

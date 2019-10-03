@@ -6,22 +6,22 @@ import java.io.IOException;
 
 import static azkaban.utils.ThinArchiveUtils.*;
 
-public class ArtifactoryDownloader {
+public class ArtifactoryDownloaderUtils {
   public static final int MAX_DEPENDENCY_DOWNLOAD_TRIES = 2;
 
-  public void downloadDependency(final File destination, final StartupDependencyDetails d)
+  public static void downloadDependency(final File destination, final StartupDependencyDetails d)
       throws HashNotMatchException, IOException {
-    downloadDependencyNoCache(destination, d, 0);
+    downloadDependency(destination, d, 0);
   }
 
-  private void downloadDependencyNoCache(final File destination, final StartupDependencyDetails d, int tries)
+  private static void downloadDependency(final File destination, final StartupDependencyDetails d, int tries)
       throws HashNotMatchException, IOException {
     try {
       tries++;
       FileDownloaderUtils.downloadToFile(destination, getArtifactoryUrlForDependency(d));
     } catch (IOException e) {
       if (tries < MAX_DEPENDENCY_DOWNLOAD_TRIES) {
-        downloadDependencyNoCache(destination, d, tries);
+        downloadDependency(destination, d, tries);
         return;
       }
       throw e;
@@ -32,7 +32,7 @@ public class ArtifactoryDownloader {
     } catch (HashNotMatchException e) {
       if (tries < MAX_DEPENDENCY_DOWNLOAD_TRIES) {
         // downloadDependency will overwrite our destination file if attempted again
-        downloadDependencyNoCache(destination, d, tries);
+        downloadDependency(destination, d, tries);
         return;
       }
       throw e;

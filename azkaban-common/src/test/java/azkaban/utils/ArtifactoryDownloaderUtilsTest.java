@@ -18,7 +18,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FileDownloaderUtils.class)
-public class ArtifactoryDownloaderTest {
+public class ArtifactoryDownloaderUtilsTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
@@ -33,7 +33,7 @@ public class ArtifactoryDownloaderTest {
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(String.class));
 
     File destinationFile = TEMP_DIR.newFile("aaaa.jar");
-    ArtifactoryDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
+    ArtifactoryDownloaderUtils.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(1));
     FileDownloaderUtils.downloadToFile(destinationFile, ThinArchiveTestSampleData.getDepAArtifactoryUrl());
@@ -58,7 +58,7 @@ public class ArtifactoryDownloaderTest {
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(String.class));
 
     File destinationFile = TEMP_DIR.newFile("aaaa.jar");
-    ArtifactoryDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
+    ArtifactoryDownloaderUtils.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(2));
     FileDownloaderUtils.downloadToFile(destinationFile, ThinArchiveTestSampleData.getDepAArtifactoryUrl());
@@ -78,7 +78,7 @@ public class ArtifactoryDownloaderTest {
 
     boolean hitException = false;
     try {
-      ArtifactoryDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
+      ArtifactoryDownloaderUtils.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
     } catch (HashNotMatchException e) {
       // Good! We wanted this exception.
       hitException = true;
@@ -90,7 +90,7 @@ public class ArtifactoryDownloaderTest {
 
     // We expect the download to be attempted the maximum number of times before it fails
     PowerMockito.verifyStatic(FileDownloaderUtils.class,
-        Mockito.times(ArtifactoryDownloader.MAX_DEPENDENCY_DOWNLOAD_TRIES));
+        Mockito.times(ArtifactoryDownloaderUtils.MAX_DEPENDENCY_DOWNLOAD_TRIES));
     FileDownloaderUtils.downloadToFile(destinationFile, ThinArchiveTestSampleData.getDepAArtifactoryUrl());
   }
 }
