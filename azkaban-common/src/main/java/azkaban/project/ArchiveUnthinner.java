@@ -7,6 +7,7 @@ import azkaban.spi.Storage;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
+import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static azkaban.utils.ThinArchiveUtils.*;
+import static azkaban.utils.ValidatorUtils.*;
 
 
 public class ArchiveUnthinner {
@@ -35,6 +37,7 @@ public class ArchiveUnthinner {
   private final Storage storage;
 
   private final Set<StartupDependencyDetails> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();
+  private final ValidatorUtils validatorUtils;
 
   private static class StartupDependencyFile {
     private final File file;
@@ -50,12 +53,13 @@ public class ArchiveUnthinner {
   }
 
   @Inject
-  public ArchiveUnthinner(final Storage storage) {
+  public ArchiveUnthinner(final Storage storage, final ValidatorUtils validatorUtils) {
     this.storage = storage;
+    this.validatorUtils = validatorUtils;
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File projectFolder, final File startupDependenciesFile, final Props prop)
+      final File projectFolder, final File startupDependenciesFile)
       throws ProjectManagerException {
 
     List<StartupDependencyDetails> dependencies;
@@ -83,7 +87,7 @@ public class ArchiveUnthinner {
         newDependencies.stream().map(d -> new StartupDependencyFile(downloadDependency(projectFolder, d), d))
             .collect(Collectors.toList());
 
-    Map<String, ValidationReport> reports = runValidator(project, projectFolder, prop);
+    Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder);
     List<StartupDependencyFile> unmodifiedDependencyFiles = new ArrayList<>();
     // Check if any files were deleted or modified in the bundle
     if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
@@ -124,15 +128,6 @@ public class ArchiveUnthinner {
     }
 
     return reports;
-  }
-
-  private Map<String, ValidationReport> runValidator(final Project project,
-      final File projectFolder, final Props prop) {
-    final ValidatorManager validatorManager = new XmlValidatorManager(prop);
-    log.info("Validating project (with thinArchive) " + project.getName()
-        + " using the registered validators "
-        + validatorManager.getValidatorsInfo().toString());
-    return validatorManager.validate(project, projectFolder);
   }
 
   private boolean mustDownloadDependency(final StartupDependencyDetails d) {
