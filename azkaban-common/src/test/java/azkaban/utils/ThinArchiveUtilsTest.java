@@ -60,15 +60,6 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
-  public void testGetArtifactoryUrlForDependency() throws Exception {
-    String generatedURL = ThinArchiveUtils.getArtifactoryUrlForDependency(ThinArchiveTestSampleData.getDepA());
-
-    assertEquals(
-        "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/com/linkedin/test/testera/1.0.1/a.jar",
-        generatedURL);
-  }
-
-  @Test
   public void testValidateDependencyHashValid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
     FileUtils.writeStringToFile(depFile, ThinArchiveTestSampleData.getDepAContent());

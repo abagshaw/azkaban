@@ -32,15 +32,6 @@ public class ThinArchiveUtils {
     FileUtils.writeStringToFile(f, JSONUtils.toJSON(outputFormat));
   }
 
-  public static String getArtifactoryUrlForDependency(StartupDependencyDetails d) {
-    String[] coordinateParts = d.getIvyCoordinates().split(":");
-    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/"
-        + coordinateParts[0].replace(".", "/") + "/"
-        + coordinateParts[1] + "/"
-        + coordinateParts[2] + "/"
-        + d.getFile();
-  }
-
   public static void validateDependencyHash(final File dependencyFile, final StartupDependencyDetails dependencyInfo)
       throws HashNotMatchException {
     try {

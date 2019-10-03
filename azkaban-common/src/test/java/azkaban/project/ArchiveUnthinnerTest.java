@@ -17,16 +17,23 @@
 
 package azkaban.project;
 
+import azkaban.project.validator.ValidationReport;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import static org.mockito.Mockito.*;
 
@@ -45,7 +52,7 @@ public class ArchiveUnthinnerTest {
   public void setUp() throws Exception {
     this.storage = mock(Storage.class);
     this.validatorUtils = mock(ValidatorUtils.class);
-    this.archiveUnthinner = new ArchiveUnthinner(this.storage, this.validatorUtils);
+    this.archiveUnthinner = spy(new ArchiveUnthinner(this.storage, this.validatorUtils));
 
     // Create test project directory
     // ../
@@ -56,20 +63,45 @@ public class ArchiveUnthinnerTest {
     libFolder.mkdirs();
     File appMetaFolder = new File(projectFolder, "app-meta");
     libFolder.mkdirs();
-    FileUtils.writeStringToFile(new File(libFolder, ThinArchiveTestSampleData.getDepA().getFile()),
-        ThinArchiveTestSampleData.getDepAContent());
+    FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
     FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
         ThinArchiveTestSampleData.getRawJSON());
   }
 
   @Test
-  public void freshValidProject() {
-    when(this.storage.getDependency()).thenReturn(this.VERSION);
+  public void freshValidProject() throws IOException {
+    /*StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
+    File depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
+    File depBInArtifactory = TEMP_DIR.newFile(depB.getFile());
+    FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
+    FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
+
+    when(this.storage.getDependency(depA.getFile(), depA.getSHA1()))
+        .thenReturn(new FileInputStream(depAInArtifactory));
+    when(this.storage.getDependency(depB.getFile(), depB.getSHA1()))
+        .thenReturn(new FileInputStream(depBInArtifactory));
+
+    doAnswer(new Answer<File>() {
+      public File answer(InvocationOnMock invocation) {
+        Callback callback = (Callback) invocation.getArguments()[0];
+        callback.onSuccess(cannedData);
+        return null;
+      }
+    }).when(this.archiveUnthinner.)
+
+    when(this.validatorUtils.validateProject(this.project, this.projectFolder)).thenReturn(new HashMap<>());
 
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     this.archiveUnthinner.validateProjectAndPersistDependencies(this.project, this.projectFolder,
-        startupDependenciesFile);
+        startupDependenciesFile);*/
+  }
 
-
+  @Test
+  public void otherTest() throws IOException {
+    /*when(this.storage.getDependency(depA.getFile(), depA.getSHA1()))
+        .thenReturn(new FileInputStream(depAInStorage));
+    when(this.storage.getDependency(depB.getFile(), depB.getSHA1()))
+        .thenReturn(new FileInputStream(depBInStorage));*/
   }
 }

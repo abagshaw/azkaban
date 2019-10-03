@@ -4,6 +4,7 @@ import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidatorManager;
 import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
+import azkaban.utils.ArtifactoryDownloaderUtils;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
@@ -26,12 +27,12 @@ import org.apache.commons.collections.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static azkaban.utils.ArtifactoryDownloaderUtils.*;
 import static azkaban.utils.ThinArchiveUtils.*;
 import static azkaban.utils.ValidatorUtils.*;
 
 
 public class ArchiveUnthinner {
-  private static final int MAX_DEPENDENCY_DOWNLOAD_RETRIES = 1;
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
   private final Storage storage;
@@ -83,20 +84,18 @@ public class ArchiveUnthinner {
     }
 
     // Download the new dependencies
-    final List<StartupDependencyFile> downloadedDependencyFiles =
-        newDependencies.stream().map(d -> new StartupDependencyFile(downloadDependency(projectFolder, d), d))
-            .collect(Collectors.toList());
+    final List<StartupDependencyFile> downloadedDependencies = downloadDependencyFiles(projectFolder, newDependencies);
 
     Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder);
-    List<StartupDependencyFile> unmodifiedDependencyFiles = new ArrayList<>();
+    List<StartupDependencyFile> unmodifiedDependencies = new ArrayList<>();
     // Check if any files were deleted or modified in the bundle
     if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
       // At least one file was deleted or modified in the bundle
       // We need to figure out which ones were modified and which weren't
-      for (StartupDependencyFile f : downloadedDependencyFiles) {
+      for (StartupDependencyFile f : downloadedDependencies) {
         try {
           if (f.getFile().exists() && HashUtils.isSameHash(f.getDetails().getSHA1(), HashUtils.SHA1.getHash(f.getFile()))) {
-            unmodifiedDependencyFiles.add(f);
+            unmodifiedDependencies.add(f);
           }
         } catch (Exception e) {
           throw new ProjectManagerException("Error while checking modified files during project validation.", e);
@@ -104,10 +103,10 @@ public class ArchiveUnthinner {
       }
 
       // Get the final list of startup dependencies that will be downloadable from storage
-      List<StartupDependencyDetails> finalDependencies =
-          ListUtils.union(
-              unmodifiedDependencyFiles.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()),
-              existingDependencies);
+      List<StartupDependencyDetails> finalDependencies = new ArrayList<>();
+      finalDependencies.addAll(existingDependencies);
+      finalDependencies.addAll(
+          unmodifiedDependencies.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()));
       // Write this list back to the startup-dependencies.json file
       try {
         writeStartupDependencies(startupDependenciesFile, finalDependencies);
@@ -116,18 +115,32 @@ public class ArchiveUnthinner {
       }
     } else {
       // No files were deleted or modified in the bundle, so all files are unmodified
-      unmodifiedDependencyFiles = downloadedDependencyFiles;
+      unmodifiedDependencies = downloadedDependencies;
     }
 
     // Loop through unmodified dependency files, persist them in storage, then delete them
     // from the project directory - they do not need to be included in the thin archive because
     // they can be downloaded from storage when needed.
-    for (StartupDependencyFile f : unmodifiedDependencyFiles) {
+    for (StartupDependencyFile f : unmodifiedDependencies) {
       this.storage.putDependency(f.getFile(), f.getDetails().getFile(), f.getDetails().getSHA1());
       f.getFile().delete();
     }
 
     return reports;
+  }
+
+  private List<StartupDependencyFile> downloadDependencyFiles(File projectFolder, List<StartupDependencyDetails> toDownload) {
+    final List<StartupDependencyFile> downloadedFiles = new ArrayList();
+    for (StartupDependencyDetails d : toDownload) {
+      File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
+      try {
+        ArtifactoryDownloaderUtils.downloadDependency(downloadedJar, d);
+      } catch (IOException | HashNotMatchException e) {
+        throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
+      }
+      downloadedFiles.add(new StartupDependencyFile(downloadedJar, d));
+    }
+    return downloadedFiles;
   }
 
   private boolean mustDownloadDependency(final StartupDependencyDetails d) {
@@ -149,44 +162,5 @@ public class ArchiveUnthinner {
 
     // We couldn't find this dependency in storage, it must be downloaded from artifactory
     return true;
-  }
-
-  private File downloadDependency(final File projectFolder, final StartupDependencyDetails d) {
-    return downloadDependency(projectFolder, d, 0);
-  }
-
-  private File downloadDependency(final File projectFolder, final StartupDependencyDetails d, int retries) {
-    File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
-    FileChannel writeChannel;
-    try {
-      downloadedJar.createNewFile();
-      FileOutputStream fileOS = new FileOutputStream(downloadedJar, false);
-      writeChannel = fileOS.getChannel();
-    } catch (IOException e) {
-      throw new ProjectManagerException("In preparation for downloading, failed to create destination file " +
-              downloadedJar.getAbsolutePath(), e);
-    }
-
-    try {
-      String toDownload = getArtifactoryUrlForDependency(d);
-      ReadableByteChannel readChannel = Channels.newChannel(new URL(toDownload).openStream());
-      writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
-    } catch (IOException e) {
-      if (retries < MAX_DEPENDENCY_DOWNLOAD_RETRIES) {
-        return downloadDependency(projectFolder, d, retries + 1);
-      }
-      throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
-    }
-
-    try {
-      validateDependencyHash(downloadedJar, d);
-    } catch (HashNotMatchException e) {
-      if (retries < MAX_DEPENDENCY_DOWNLOAD_RETRIES) {
-        return downloadDependency(projectFolder, d, retries + 1);
-      }
-      throw new ProjectManagerException(e.getMessage());
-    }
-
-    return downloadedJar;
   }
 }

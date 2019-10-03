@@ -13,39 +13,45 @@ public class ThinArchiveTestSampleData {
         "    \"dependencies\": [" +
         "        {" +
         "            \"sha1\": \"131BD316A77423E6B80D93262B576C139C72B4C3\"," +
-        "            \"file\": \"a.jar\"," +
+        "            \"file\": \"aaaa.jar\"," +
         "            \"destination\": \"lib\"," +
         "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testera:1.0.1\"" +
+        "            \"ivyCoordinates\": \"com.linkedin.test:testeraaaa:1.0.1\"" +
         "        }," +
         "        {" +
         "            \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
-        "            \"file\": \"b.jar\"," +
+        "            \"file\": \"bbbb.jar\"," +
         "            \"destination\": \"lib\"," +
         "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testerb:1.0.1\"" +
+        "            \"ivyCoordinates\": \"com.linkedin.test:testerbbbb:1.0.1\"" +
         "        }" +
         "    ]" +
         "}";
   }
 
   public static String getDepAContent() { return "blahblah12"; }
+  public static String getDepAArtifactoryUrl() {
+    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/com/linkedin/test/testeraaaa/1.0.1/aaaa.jar";
+  }
   public static StartupDependencyDetails getDepA() {
     return new StartupDependencyDetails(
-      "a.jar",
+      "aaaa.jar",
       "lib",
       "jar",
-      "com.linkedin.test:testera:1.0.1",
+      "com.linkedin.test:testeraaaa:1.0.1",
       "131BD316A77423E6B80D93262B576C139C72B4C3");
   }
 
   public static String getDepBContent() { return "ladedah83"; }
+  public static String getDepBArtifactoryUrl() {
+    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/com/linkedin/test/testerbbbb/1.0.1/bbbb.jar";
+  }
   public static StartupDependencyDetails getDepB() {
     return new StartupDependencyDetails(
-      "b.jar",
+      "bbbb.jar",
       "lib",
       "jar",
-      "com.linkedin.test:testerb:1.0.1",
+      "com.linkedin.test:testerbbbb:1.0.1",
       "9461919846E1E7C8FC74FEE95AA6AC74993BE71E");
   }
 }

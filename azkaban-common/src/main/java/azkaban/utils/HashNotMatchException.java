@@ -1,6 +1,6 @@
 package azkaban.utils;
 
-public class HashNotMatchException extends RuntimeException {
+public class HashNotMatchException extends Exception {
   public HashNotMatchException() {
     super();
   }
