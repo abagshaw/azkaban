@@ -82,9 +82,12 @@ public class ArchiveUnthinnerTest {
 
   @Test
   public void freshValidProject() {
+    when(this.storage.getDependency()).thenReturn(this.VERSION);
+
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     this.archiveUnthinner.validateProjectAndPersistDependencies(this.project, this.projectFolder,
         startupDependenciesFile);
+
 
   }
 }
