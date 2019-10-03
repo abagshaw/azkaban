@@ -17,26 +17,31 @@
 
 package azkaban.project;
 
-import azkaban.project.validator.ValidationReport;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
+import azkaban.utils.ArtifactoryDownloader;
+import azkaban.utils.FileDownloaderUtils;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.invocation.InvocationOnMock;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.mockito.Mockito.*;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(ArtifactoryDownloader.class)
 public class ArchiveUnthinnerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
@@ -69,32 +74,42 @@ public class ArchiveUnthinnerTest {
   }
 
   @Test
-  public void freshValidProject() throws IOException {
-    /*StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+  public void freshValidProject() throws Exception {
+    PowerMockito.mockStatic(FileDownloaderUtils.class);
+
+    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
     StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
     File depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
     File depBInArtifactory = TEMP_DIR.newFile(depB.getFile());
     FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
 
-    when(this.storage.getDependency(depA.getFile(), depA.getSHA1()))
-        .thenReturn(new FileInputStream(depAInArtifactory));
-    when(this.storage.getDependency(depB.getFile(), depB.getSHA1()))
-        .thenReturn(new FileInputStream(depBInArtifactory));
+    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
+    when(this.storage.existsDependency(depA.getFile(), depA.getSHA1())).thenReturn(false);
+    when(this.storage.existsDependency(depB.getFile(), depB.getSHA1())).thenReturn(false);
 
-    doAnswer(new Answer<File>() {
-      public File answer(InvocationOnMock invocation) {
-        Callback callback = (Callback) invocation.getArguments()[0];
-        callback.onSuccess(cannedData);
-        return null;
-      }
-    }).when(this.archiveUnthinner.)
+    // When ArtifactoryDownloaderUtils.downloadDependency() is called,
+    // write the content to the file as if it was downloaded
+    PowerMockito.doAnswer((Answer) invocation -> {
+      File destFile = (File) invocation.getArguments()[0];
+      StartupDependencyDetails requestDependency = (StartupDependencyDetails) invocation.getArguments()[1];
 
+      String contentToWrite = requestDependency.equals(depA) ?
+          ThinArchiveTestSampleData.getDepAContent() :
+          ThinArchiveTestSampleData.getDepBContent();
+
+      FileUtils.writeStringToFile(destFile, contentToWrite);
+      return null;
+    }).when(ArtifactoryDownloader.class, "downloadDependency",
+        Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
+
+    // When the unthinner attempts to validate the project, return an empty map (indicating that the
+    // validator found no errors and made no changes to the project)
     when(this.validatorUtils.validateProject(this.project, this.projectFolder)).thenReturn(new HashMap<>());
 
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     this.archiveUnthinner.validateProjectAndPersistDependencies(this.project, this.projectFolder,
-        startupDependenciesFile);*/
+        startupDependenciesFile);
   }
 
   @Test

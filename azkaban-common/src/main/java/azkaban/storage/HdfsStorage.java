@@ -60,7 +60,7 @@ public class HdfsStorage implements Storage {
     requireNonNull(this.rootUri.getAuthority(), "URI must have host:port mentioned.");
     checkArgument(HDFS_SCHEME.equals(this.rootUri.getScheme()));
 
-    this.dependencyPath = new Path(this.rootUri.toASCIIString(), DEPENDENCY_FOLDER);
+    this.dependencyPath = new Path(this.rootUri.getPath(), DEPENDENCY_FOLDER);
     if (this.hdfs.mkdirs(this.dependencyPath)) {
       log.info("Created dir for jar dependencies: " + this.dependencyPath);
     }

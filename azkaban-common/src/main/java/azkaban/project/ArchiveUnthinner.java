@@ -1,21 +1,13 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
-import azkaban.project.validator.ValidatorManager;
-import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
-import azkaban.utils.ArtifactoryDownloaderUtils;
+import azkaban.utils.ArtifactoryDownloader;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.HashUtils;
-import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,13 +15,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
-import org.apache.commons.collections.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static azkaban.utils.ArtifactoryDownloaderUtils.*;
 import static azkaban.utils.ThinArchiveUtils.*;
-import static azkaban.utils.ValidatorUtils.*;
 
 
 public class ArchiveUnthinner {
@@ -134,7 +123,7 @@ public class ArchiveUnthinner {
     for (StartupDependencyDetails d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
       try {
-        ArtifactoryDownloaderUtils.downloadDependency(downloadedJar, d);
+        ArtifactoryDownloader.downloadDependency(downloadedJar, d);
       } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
       }

@@ -82,7 +82,7 @@ public class HdfsStorageTest {
   @Test
   public void testGetDependency() throws Exception {
     this.hdfsStorage.getDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
-    verify(this.hdfs).open(new Path("hdfs://localhost:9000/path/to/foo/"
+    verify(this.hdfs).open(new Path("/path/to/foo/"
             + HdfsStorage.DEPENDENCY_FOLDER + "/"
             + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar"));
   }
@@ -90,7 +90,7 @@ public class HdfsStorageTest {
   @Test
   public void testExistsDependency() throws Exception {
     this.hdfsStorage.existsDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
-    verify(this.hdfs).exists(new Path("hdfs://localhost:9000/path/to/foo/"
+    verify(this.hdfs).exists(new Path("/path/to/foo/"
         + HdfsStorage.DEPENDENCY_FOLDER + "/"
         + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar"));
   }
@@ -100,7 +100,7 @@ public class HdfsStorageTest {
     final File tmpEmptyJar = TEMP_DIR.newFile("a.jar");
     this.hdfsStorage.putDependency(tmpEmptyJar, "a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
 
-    final String expectedPath = "hdfs://localhost:9000/path/to/foo/" +
+    final String expectedPath = "/path/to/foo/" +
         HdfsStorage.DEPENDENCY_FOLDER + "/"
         + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar";
     verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), new Path(expectedPath));
