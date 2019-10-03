@@ -75,12 +75,14 @@ class AzkabanProjectLoader {
   private final int projectVersionRetention;
   private final ExecutorLoader executorLoader;
   private final Storage storage;
+  private final ValidatorUtils validatorUtils;
 
   @Inject
   AzkabanProjectLoader(final Props props, final ProjectLoader projectLoader,
       final StorageManager storageManager, final FlowLoaderFactory flowLoaderFactory,
       final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator,
-      final Storage storage, final ArchiveUnthinner archiveUnthinner) {
+      final Storage storage, final ArchiveUnthinner archiveUnthinner,
+      final ValidatorUtils validatorUtils) {
     this.props = requireNonNull(props, "Props is null");
     this.projectLoader = requireNonNull(projectLoader, "project Loader is null");
     this.storageManager = requireNonNull(storageManager, "Storage Manager is null");
@@ -89,6 +91,7 @@ class AzkabanProjectLoader {
     this.dbOperator = databaseOperator;
     this.storage = storage;
     this.archiveUnthinner = archiveUnthinner;
+    this.validatorUtils = validatorUtils;
 
     this.tempDir = new File(props.getString(ConfigurationKeys.PROJECT_TEMP_DIR, "temp"));
     this.executorLoader = executorLoader;
@@ -124,8 +127,8 @@ class AzkabanProjectLoader {
 
       File startupDependencies = getStartupDependenciesFile(folder);
       reports = startupDependencies.exists()
-          ? this.archiveUnthinner.validateProjectAndPersistDependencies(project, folder, startupDependencies, prop)
-          : ValidatorUtils.validateProject(project, folder, prop);
+          ? this.archiveUnthinner.validateProjectAndPersistDependencies(project, folder, startupDependencies)
+          : this.validatorUtils.validateProject(project, folder);
 
       // If the project folder has been modified, update the project zip
       if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
