@@ -75,7 +75,7 @@ public class ArchiveUnthinnerTest {
 
   @Test
   public void freshValidProject() throws Exception {
-    PowerMockito.mockStatic(FileDownloaderUtils.class);
+    PowerMockito.mockStatic(ArtifactoryDownloaderUtils.class);
 
     StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
     StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
