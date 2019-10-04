@@ -21,4 +21,5 @@ jar {
 dependencies {
     compile deps.awaitility
     compile deps.assertj
+    compile project(':azkaban-common')
 }
