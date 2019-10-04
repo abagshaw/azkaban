@@ -129,7 +129,7 @@ public class ArchiveUnthinnerTest {
   }
 
   @Test
-  public void testStorageCache() throws Exception {
+  public void testComplexPartialFreshValidProject() throws Exception {
     PowerMockito.mockStatic(ArtifactoryDownloaderUtils.class);
 
     StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
@@ -139,9 +139,9 @@ public class ArchiveUnthinnerTest {
     FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
 
-    // Indicate that the dependencies ARE in storage, not requiring them be downloaded
+    // Indicate that the depA is in storage, but depB is not (forcing depB to be downloaded)
     when(this.storage.existsDependency(depA.getFile(), depA.getSHA1())).thenReturn(true);
-    when(this.storage.existsDependency(depB.getFile(), depB.getSHA1())).thenReturn(true);
+    when(this.storage.existsDependency(depB.getFile(), depB.getSHA1())).thenReturn(false);
 
     // When ArtifactoryDownloaderUtils.downloadDependency() is called,
     // write the content to the file as if it was downloaded
@@ -169,8 +169,10 @@ public class ArchiveUnthinnerTest {
     // Verify that ValidationReport is as expected (empty)
     assertEquals(result, new HashMap<>());
 
-    // Verify that no dependencies were persisted to storage
-    verify(this.storage, Mockito.never()).putDependency(Mockito.any(), Mockito.any(), Mockito.any());
+    // Verify that only depB was persisted to storage, but not depA
+    verify(this.storage, Mockito.never()).putDependency(Mockito.any(File.class), eq(depA.getFile()), eq(depA.getSHA1()));
+    verify(this.storage, Mockito.times(1))
+        .putDependency(Mockito.any(File.class), eq(depB.getFile()), eq(depB.getSHA1()));
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);

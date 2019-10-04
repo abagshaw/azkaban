@@ -26,7 +26,7 @@ public class ArchiveUnthinner {
 
   private final Storage storage;
 
-  private final Set<StartupDependencyDetails> dependenciesOnHDFS = ConcurrentHashMap.newKeySet();
+  private final Set<StartupDependencyDetails> dependenciesInStorage = ConcurrentHashMap.newKeySet();
   private final ValidatorUtils validatorUtils;
 
   private static class StartupDependencyFile {
@@ -107,11 +107,12 @@ public class ArchiveUnthinner {
       unmodifiedDependencies = downloadedDependencies;
     }
 
-    // Loop through unmodified dependency files, persist them in storage, then delete them
-    // from the project directory - they do not need to be included in the thin archive because
-    // they can be downloaded from storage when needed.
+    // Loop through unmodified dependency files, persist them in storage, add them to in-memory cache
+    // then delete them from the project directory - they do not need to be included in the thin archive
+    // because they can be downloaded from storage when needed.
     for (StartupDependencyFile f : unmodifiedDependencies) {
       this.storage.putDependency(f.getFile(), f.getDetails().getFile(), f.getDetails().getSHA1());
+      dependenciesInStorage.add(f.getDetails());
       f.getFile().delete();
     }
 
@@ -135,13 +136,13 @@ public class ArchiveUnthinner {
   private boolean mustDownloadDependency(final StartupDependencyDetails d) {
     // See if our in-memory cache of dependencies in storage already has this dependency listed
     // If it does, no need to download! It must already be in storage.
-    if (dependenciesOnHDFS.contains(d)) return false;
+    if (dependenciesInStorage.contains(d)) return false;
 
     // Check if the dependency exists in storage
     try {
       if (this.storage.existsDependency(d.getFile(), d.getSHA1())) {
         // It does, so we need to update our in-memory cache list
-        dependenciesOnHDFS.add(d);
+        dependenciesInStorage.add(d);
         return false;
       }
     } catch (IOException e) {
