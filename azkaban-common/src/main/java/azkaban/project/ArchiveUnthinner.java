@@ -1,10 +1,10 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
-import azkaban.utils.ArtifactoryDownloaderUtils;
+import azkaban.utils.DependencyDownloader;
 import azkaban.utils.HashNotMatchException;
-import azkaban.utils.HashUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.io.IOException;
@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.slf4j.Logger;
@@ -26,7 +25,6 @@ public class ArchiveUnthinner {
 
   private final Storage storage;
 
-  private final Set<StartupDependencyDetails> dependenciesInStorage = ConcurrentHashMap.newKeySet();
   private final ValidatorUtils validatorUtils;
 
   private static class StartupDependencyFile {
@@ -77,13 +75,22 @@ public class ArchiveUnthinner {
 
     Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder);
     List<StartupDependencyFile> unmodifiedDependencies = new ArrayList<>();
+
+    // A set of filename strings representing jars that have been either modified or deleted during
+    // the execution of one or more validators.
+    Set<String> modifiedJars = reports.values()
+        .stream()
+        .map(r -> r.getModifiedFiles())
+        .flatMap(set -> set.stream())
+        .collect(Collectors.toSet());
+
     // Check if any files were deleted or modified in the bundle
-    if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
+    if (!reports.values().stream().allMatch(r -> r.getModifiedFiles().isEmpty())) {
       // At least one file was deleted or modified in the bundle
       // We need to figure out which ones were modified and which weren't
       for (StartupDependencyFile f : downloadedDependencies) {
         try {
-          if (f.getFile().exists() && HashUtils.isSameHash(f.getDetails().getSHA1(), HashUtils.SHA1.getHash(f.getFile()))) {
+          if (f.getFile().exists() && ) {
             unmodifiedDependencies.add(f);
           }
         } catch (Exception e) {
@@ -124,7 +131,7 @@ public class ArchiveUnthinner {
     for (StartupDependencyDetails d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
       try {
-        ArtifactoryDownloaderUtils.downloadDependency(downloadedJar, d);
+        DependencyDownloader.downloadDependency(downloadedJar, d);
       } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
       }

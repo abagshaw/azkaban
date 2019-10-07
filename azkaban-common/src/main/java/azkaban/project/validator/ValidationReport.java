@@ -13,14 +13,14 @@ import java.util.Set;
 public class ValidationReport {
 
   protected ValidationStatus _status;
-  protected boolean _bundleModified;
+  protected Set<String> _modifiedFiles;
   protected Set<String> _infoMsgs;
   protected Set<String> _warningMsgs;
   protected Set<String> _errorMsgs;
 
   public ValidationReport() {
     this._status = ValidationStatus.PASS;
-    this._bundleModified = false;
+    this._modifiedFiles = new HashSet<>();
     this._infoMsgs = new HashSet<>();
     this._warningMsgs = new HashSet<>();
     this._errorMsgs = new HashSet<>();
@@ -95,6 +95,20 @@ public class ValidationReport {
   }
 
   /**
+   * Add a set of modified filenames
+   */
+  public void addModifiedFiles(final Set<String> files) {
+    this._modifiedFiles.addAll(files);
+  }
+
+  /**
+   * Add one modified file
+   */
+  public void addModifiedFile(final String file) {
+    this._modifiedFiles.add(file);
+  }
+
+  /**
    * Retrieve the status of the report.
    */
   public ValidationStatus getStatus() {
@@ -123,12 +137,7 @@ public class ValidationReport {
   }
 
   /**
-   * Set whether or not any files were deleted or modified in the bundle.
+   * Get the set of modified file names
    */
-  public void setBundleModified(boolean modified) { this._bundleModified = modified; }
-
-  /**
-   * Get whether or not any files were deleted or modified in the bundle.
-   */
-  public boolean getBundleModified() { return this._bundleModified; }
+  public Set<String> getModifiedFiles() { return this._modifiedFiles; }
 }

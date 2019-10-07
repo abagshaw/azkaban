@@ -1,6 +1,6 @@
 package azkaban.utils;
 
-import azkaban.project.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyDetails;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -30,6 +30,14 @@ public class ThinArchiveUtils {
     Map<String, List<StartupDependencyDetails>> outputFormat = new HashMap<>();
     outputFormat.put("dependencies", dependencies);
     FileUtils.writeStringToFile(f, JSONUtils.toJSON(outputFormat));
+  }
+
+  public static String convertIvyCoordinateToPath(StartupDependencyDetails dep) {
+    String[] coordinateParts = dep.getIvyCoordinates().split(":");
+    return coordinateParts[0].replace(".", "/") + "/"
+        + coordinateParts[1] + "/"
+        + coordinateParts[2] + "/"
+        + dep.getFile();
   }
 
   public static void validateDependencyHash(final File dependencyFile, final StartupDependencyDetails dependencyInfo)

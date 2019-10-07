@@ -1,24 +1,33 @@
 package azkaban.utils;
 
-import azkaban.project.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyDetails;
 import java.io.File;
 import java.io.IOException;
+import javax.inject.Inject;
 
+import static azkaban.Constants.ConfigurationKeys.AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL;
 import static azkaban.utils.ThinArchiveUtils.*;
 
-public class ArtifactoryDownloaderUtils {
+public class DependencyDownloader {
   public static final int MAX_DEPENDENCY_DOWNLOAD_TRIES = 2;
 
-  public static void downloadDependency(final File destination, final StartupDependencyDetails d)
+  private final Props props;
+
+  @Inject
+  public DependencyDownloader(Props props) {
+    this.props = props;
+  }
+
+  public void downloadDependency(final File destination, final StartupDependencyDetails d)
       throws HashNotMatchException, IOException {
     downloadDependency(destination, d, 0);
   }
 
-  private static void downloadDependency(final File destination, final StartupDependencyDetails d, int tries)
+  private void downloadDependency(final File destination, final StartupDependencyDetails d, int tries)
       throws HashNotMatchException, IOException {
     try {
       tries++;
-      FileDownloaderUtils.downloadToFile(destination, getArtifactoryUrlForDependency(d));
+      FileDownloaderUtils.downloadToFile(destination, getUrlForDependency(d));
     } catch (IOException e) {
       if (tries < MAX_DEPENDENCY_DOWNLOAD_TRIES) {
         downloadDependency(destination, d, tries);
@@ -40,12 +49,7 @@ public class ArtifactoryDownloaderUtils {
   }
 
 
-  private static String getArtifactoryUrlForDependency(StartupDependencyDetails d) {
-    String[] coordinateParts = d.getIvyCoordinates().split(":");
-    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/"
-        + coordinateParts[0].replace(".", "/") + "/"
-        + coordinateParts[1] + "/"
-        + coordinateParts[2] + "/"
-        + d.getFile();
+  private String getUrlForDependency(StartupDependencyDetails d) {
+    return this.props.getString(AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL) + convertIvyCoordinateToPath(d);
   }
 }

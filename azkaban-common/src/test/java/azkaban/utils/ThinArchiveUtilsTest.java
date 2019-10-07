@@ -17,7 +17,7 @@
 
 package azkaban.utils;
 
-import azkaban.project.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
 import java.util.List;

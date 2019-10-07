@@ -1,8 +1,7 @@
-package azkaban.project;
+package azkaban.spi;
 
 import java.util.Map;
 import java.util.Objects;
-
 
 public class StartupDependencyDetails {
   private final String file;

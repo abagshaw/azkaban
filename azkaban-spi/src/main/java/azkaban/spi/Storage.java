@@ -51,11 +51,11 @@ public interface Storage {
    */
   String putProject(ProjectStorageMetadata metadata, File localFile);
 
-  void putDependency(File localFile, String name, String sha1);
+  void putDependency(File localFile, StartupDependencyDetails s);
 
-  InputStream getDependency(String name, String sha1) throws IOException;
+  InputStream getDependency(StartupDependencyDetails s) throws IOException;
 
-  boolean existsDependency(String name, String sha1) throws IOException;
+  boolean existsDependency(StartupDependencyDetails s) throws IOException;
 
   /**
    * Delete an object from Storage.

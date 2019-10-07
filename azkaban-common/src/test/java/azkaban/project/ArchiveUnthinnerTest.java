@@ -18,13 +18,13 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
-import azkaban.utils.ArtifactoryDownloaderUtils;
+import azkaban.utils.DependencyDownloader;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.io.FileUtils;
@@ -42,11 +42,10 @@ import org.skyscreamer.jsonassert.JSONAssert;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.internal.configuration.GlobalConfiguration.*;
 
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ArtifactoryDownloaderUtils.class)
+@PrepareForTest(DependencyDownloader.class)
 public class ArchiveUnthinnerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
@@ -80,7 +79,7 @@ public class ArchiveUnthinnerTest {
 
   @Test
   public void testFreshUncachedValidProject() throws Exception {
-    PowerMockito.mockStatic(ArtifactoryDownloaderUtils.class);
+    PowerMockito.mockStatic(DependencyDownloader.class);
 
     StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
     StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
@@ -105,7 +104,7 @@ public class ArchiveUnthinnerTest {
 
       FileUtils.writeStringToFile(destFile, contentToWrite);
       return null;
-    }).when(ArtifactoryDownloaderUtils.class, "downloadDependency",
+    }).when(DependencyDownloader.class, "downloadDependency",
         Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
@@ -135,7 +134,7 @@ public class ArchiveUnthinnerTest {
 
   @Test
   public void testComplexPartialFreshValidProject() throws Exception {
-    PowerMockito.mockStatic(ArtifactoryDownloaderUtils.class);
+    PowerMockito.mockStatic(DependencyDownloader.class);
 
     StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
     StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
@@ -160,7 +159,7 @@ public class ArchiveUnthinnerTest {
 
       FileUtils.writeStringToFile(destFile, contentToWrite);
       return null;
-    }).when(ArtifactoryDownloaderUtils.class, "downloadDependency",
+    }).when(DependencyDownloader.class, "downloadDependency",
         Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
@@ -207,7 +206,7 @@ public class ArchiveUnthinnerTest {
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
 
     // Verify that the startup-dependencies.json file is NOT modified
-    String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
+    finalJSON = FileUtils.readFileToString(startupDependenciesFile);
     JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);
   }
 

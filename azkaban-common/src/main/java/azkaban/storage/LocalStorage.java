@@ -18,11 +18,11 @@
 package azkaban.storage;
 
 
-import static azkaban.utils.StorageUtils.createTargetProjectFilename;
-import static azkaban.utils.StorageUtils.createTargetDependencyFilename;
+import static azkaban.utils.StorageUtils.*;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import azkaban.AzkabanCommonModuleConfig;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
@@ -90,7 +90,7 @@ public class LocalStorage implements Storage {
       log.info("Created project dir: " + projectDir.getAbsolutePath());
     }
     final File targetFile = new File(projectDir,
-        createTargetProjectFilename(metadata.getProjectId(), metadata.getHash()));
+        getTargetProjectFilename(metadata.getProjectId(), metadata.getHash()));
 
     if (targetFile.exists()) {
       log.info(String.format("Duplicate found: meta: %s, targetFile: %s, ", metadata,
@@ -109,31 +109,32 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public void putDependency(File localFile, String name, String sha1) {
-    final File targetFile = new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1));
+  public void putDependency(File localFile, StartupDependencyDetails dep) {
+    final File targetFile = getDependencyFile(dep);
 
     // Copy file to storage dir
     try {
+      targetFile.mkdirs();
       FileUtils.copyFile(localFile, targetFile);
     } catch (final IOException e) {
-      log.error("LocalStorage error in putDependency(): name: " + name);
+      log.error("LocalStorage error in putDependency(): name: " + dep.getFile());
       throw new StorageException(e);
     }
   }
 
   @Override
-  public InputStream getDependency(String name, String sha1) throws IOException {
-    final File targetFile = getDependencyFile(name, sha1);
+  public InputStream getDependency(StartupDependencyDetails dep) throws IOException {
+    final File targetFile = getDependencyFile(dep);
     return new FileInputStream(targetFile);
   }
 
   @Override
-  public boolean existsDependency(String name, String sha1) throws IOException {
-    return getDependencyFile(name, sha1).exists();
+  public boolean existsDependency(StartupDependencyDetails dep) {
+    return getDependencyFile(dep).exists();
   }
 
-  private File getDependencyFile(String name, String sha1) {
-    return new File(this.dependencyDirectory, createTargetDependencyFilename(name, sha1));
+  private File getDependencyFile(StartupDependencyDetails dep) {
+    return new File(this.dependencyDirectory, getTargetDependencyPath(dep));
   }
 
   private String getRelativePath(final File targetFile) {

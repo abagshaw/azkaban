@@ -17,12 +17,12 @@
 
 package azkaban.storage;
 
-import static azkaban.utils.StorageUtils.createTargetDependencyFilename;
-import static azkaban.utils.StorageUtils.createTargetProjectFilename;
+import static azkaban.utils.StorageUtils.*;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import azkaban.AzkabanCommonModuleConfig;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
@@ -82,7 +82,7 @@ public class HdfsStorage implements Storage {
         log.info("Created project dir: " + projectsPath);
       }
       final Path targetPath = new Path(projectsPath,
-          createTargetProjectFilename(metadata.getProjectId(), metadata.getHash()));
+          getTargetProjectFilename(metadata.getProjectId(), metadata.getHash()));
       if (this.hdfs.exists(targetPath)) {
         log.info(
             String.format("Duplicate Found: meta: %s path: %s", metadata, targetPath));
@@ -100,38 +100,39 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public void putDependency(File localFile, String name, String sha1) {
+  public void putDependency(File localFile, StartupDependencyDetails dep) {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
-      final Path targetPath = getDependencyPath(name, sha1);
-      log.info(String.format("Uploading dependency to HDFS: %s -> %s", name, targetPath));
+      final Path targetPath = getDependencyPath(dep);
+      log.info(String.format("Uploading dependency to HDFS: %s -> %s", dep.getFile(), targetPath));
+      this.hdfs.mkdirs(targetPath);
       this.hdfs.copyFromLocalFile(new Path(localFile.getAbsolutePath()), targetPath);
     } catch (final FileAlreadyExistsException e) {
-      // Either the file already exists, or another webserver process is uploading it
+      // Either the file already exists, or another web server process is uploading it
       // Either way, we can assume that the dependency will be present on HDFS and we don't
       // need to worry about persisting it.
-      log.info("Upload stopped. Dependency already exists in HDFS: " + name);
+      log.info("Upload stopped. Dependency already exists in HDFS: " + dep.getFile());
     } catch (final IOException e) {
-      log.error("Error uploading dependency to HDFS: " + name);
+      log.error("Error uploading dependency to HDFS: " + dep.getFile());
       throw new StorageException(e);
     }
   }
 
   @Override
-  public InputStream getDependency(String name, String sha1) throws IOException {
+  public InputStream getDependency(StartupDependencyDetails dep) throws IOException {
     this.hdfsAuth.authorize();
-    return this.hdfs.open(getDependencyPath(name, sha1));
+    return this.hdfs.open(getDependencyPath(dep));
   }
 
   @Override
-  public boolean existsDependency(String name, String sha1) throws IOException {
+  public boolean existsDependency(StartupDependencyDetails dep) throws IOException {
     this.hdfsAuth.authorize();
-    return this.hdfs.exists(getDependencyPath(name, sha1));
+    return this.hdfs.exists(getDependencyPath(dep));
   }
 
-  private Path getDependencyPath(String name, String sha1) {
-    return new Path(this.dependencyPath, createTargetDependencyFilename(name, sha1));
+  private Path getDependencyPath(StartupDependencyDetails dep) {
+    return new Path(this.dependencyPath, getTargetDependencyPath(dep));
   }
 
   private String getRelativePath(final Path targetPath) {

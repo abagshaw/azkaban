@@ -1,6 +1,6 @@
 package azkaban.test.executions;
 
-import azkaban.project.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyDetails;
 import java.util.Arrays;
 import java.util.List;
 

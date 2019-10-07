@@ -17,6 +17,7 @@
 
 package azkaban.project;
 
+import static azkaban.Constants.ConfigurationKeys.*;
 import static azkaban.utils.ThinArchiveUtils.*;
 import static java.util.Objects.requireNonNull;
 
@@ -33,9 +34,6 @@ import azkaban.project.FlowLoaderUtils.SuffixFilter;
 import azkaban.project.ProjectLogEvent.EventType;
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
-import azkaban.project.validator.ValidatorConfigs;
-import azkaban.project.validator.ValidatorManager;
-import azkaban.project.validator.XmlValidatorManager;
 import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.user.User;
@@ -131,7 +129,7 @@ class AzkabanProjectLoader {
           : this.validatorUtils.validateProject(project, folder);
 
       // If the project folder has been modified, update the project zip
-      if (!reports.values().stream().noneMatch(r -> r.getBundleModified())) {
+      if (!reports.values().stream().allMatch(r -> r.getModifiedFiles().isEmpty())) {
         updateProjectZip(archive, folder);
       }
 

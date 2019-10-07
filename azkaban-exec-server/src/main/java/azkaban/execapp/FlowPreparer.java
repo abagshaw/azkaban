@@ -24,7 +24,7 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
-import azkaban.project.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
