@@ -2,9 +2,11 @@ package azkaban.utils;
 
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
+import java.net.URL;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -15,12 +17,31 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import static azkaban.Constants.ConfigurationKeys.*;
+import static org.mockito.Mockito.*;
+
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FileDownloaderUtils.class)
 public class DependencyDownloaderTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
+
+  public final String DOWNLOAD_BASE_URL = "https://example.com/";
+  public URL depAFullUrl;
+
+  public DependencyDownloader dependencyDownloader;
+  public Props props;
+
+  @Before
+  public void setup() throws Exception {
+    this.props = new Props();
+    this.props.put(AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL, DOWNLOAD_BASE_URL);
+
+    depAFullUrl = new URL(new URL(DOWNLOAD_BASE_URL), ThinArchiveTestSampleData.getDepAPath());
+
+    dependencyDownloader = new DependencyDownloader(this.props);
+  }
 
   @Test
   public void testDownloadDependencySuccess() throws Exception {
@@ -30,13 +51,13 @@ public class DependencyDownloaderTest {
       File destFile = (File) invocation.getArguments()[0];
       FileUtils.writeStringToFile(destFile, ThinArchiveTestSampleData.getDepAContent());
       return null;
-    }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(String.class));
+    }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(URL.class));
 
     File destinationFile = TEMP_DIR.newFile("aaaa.jar");
-    DependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
+    this.dependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(1));
-    FileDownloaderUtils.downloadToFile(destinationFile, ThinArchiveTestSampleData.getDepAArtifactoryUrl());
+    FileDownloaderUtils.downloadToFile(destinationFile, depAFullUrl);
   }
 
   @Test
@@ -55,13 +76,13 @@ public class DependencyDownloaderTest {
         FileUtils.writeStringToFile(destFile, ThinArchiveTestSampleData.getDepAContent());
       }
       return null;
-    }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(String.class));
+    }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(URL.class));
 
     File destinationFile = TEMP_DIR.newFile("aaaa.jar");
-    DependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
+    this.dependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(2));
-    FileDownloaderUtils.downloadToFile(destinationFile, ThinArchiveTestSampleData.getDepAArtifactoryUrl());
+    FileDownloaderUtils.downloadToFile(destinationFile, depAFullUrl);
   }
 
   @Test
@@ -72,13 +93,13 @@ public class DependencyDownloaderTest {
       File destFile = (File) invocation.getArguments()[0];
       FileUtils.writeStringToFile(destFile, "WRONG CONTENT!!!!!!!");
       return null;
-    }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(String.class));
+    }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(URL.class));
 
     File destinationFile = TEMP_DIR.newFile("aaaa.jar");
 
     boolean hitException = false;
     try {
-      DependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
+      this.dependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
     } catch (HashNotMatchException e) {
       // Good! We wanted this exception.
       hitException = true;
@@ -91,6 +112,6 @@ public class DependencyDownloaderTest {
     // We expect the download to be attempted the maximum number of times before it fails
     PowerMockito.verifyStatic(FileDownloaderUtils.class,
         Mockito.times(DependencyDownloader.MAX_DEPENDENCY_DOWNLOAD_TRIES));
-    FileDownloaderUtils.downloadToFile(destinationFile, ThinArchiveTestSampleData.getDepAArtifactoryUrl());
+    FileDownloaderUtils.downloadToFile(destinationFile, depAFullUrl);
   }
 }

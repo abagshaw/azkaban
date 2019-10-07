@@ -30,8 +30,8 @@ public class ThinArchiveTestSampleData {
   }
 
   public static String getDepAContent() { return "blahblah12"; }
-  public static String getDepAArtifactoryUrl() {
-    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/com/linkedin/test/testeraaaa/1.0.1/aaaa.jar";
+  public static String getDepAPath() {
+    return "com/linkedin/test/testeraaaa/1.0.1/aaaa.jar";
   }
   public static StartupDependencyDetails getDepA() {
     return new StartupDependencyDetails(
@@ -43,8 +43,8 @@ public class ThinArchiveTestSampleData {
   }
 
   public static String getDepBContent() { return "ladedah83"; }
-  public static String getDepBArtifactoryUrl() {
-    return "http://dev-artifactory.corp.linkedin.com:8081/artifactory/release/com/linkedin/test/testerbbbb/1.0.1/bbbb.jar";
+  public static String getDepBPath() {
+    return "com/linkedin/test/testerbbbb/1.0.1/bbbb.jar";
   }
   public static StartupDependencyDetails getDepB() {
     return new StartupDependencyDetails(

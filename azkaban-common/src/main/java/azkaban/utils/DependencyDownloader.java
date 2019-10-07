@@ -3,6 +3,8 @@ package azkaban.utils;
 import azkaban.spi.StartupDependencyDetails;
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import javax.inject.Inject;
 
 import static azkaban.Constants.ConfigurationKeys.AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL;
@@ -49,7 +51,9 @@ public class DependencyDownloader {
   }
 
 
-  private String getUrlForDependency(StartupDependencyDetails d) {
-    return this.props.getString(AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL) + convertIvyCoordinateToPath(d);
+  private URL getUrlForDependency(StartupDependencyDetails d) throws MalformedURLException {
+    return new URL(
+        new URL(this.props.getString(AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL)),
+        convertIvyCoordinateToPath(d));
   }
 }

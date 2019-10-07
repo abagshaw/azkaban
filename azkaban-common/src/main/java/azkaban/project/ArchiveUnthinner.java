@@ -4,6 +4,7 @@ import azkaban.project.validator.ValidationReport;
 import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.utils.DependencyDownloader;
+import azkaban.utils.DependencyStorage;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
@@ -23,7 +24,8 @@ import static azkaban.utils.ThinArchiveUtils.*;
 public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
-  private final Storage storage;
+  private final DependencyStorage dependencyStorage;
+  private final DependencyDownloader dependencyDownloader;
 
   private final ValidatorUtils validatorUtils;
 
@@ -41,9 +43,11 @@ public class ArchiveUnthinner {
   }
 
   @Inject
-  public ArchiveUnthinner(final Storage storage, final ValidatorUtils validatorUtils) {
-    this.storage = storage;
+  public ArchiveUnthinner(final ValidatorUtils validatorUtils, final DependencyStorage dependencyStorage,
+      final DependencyDownloader dependencyDownloader) {
     this.validatorUtils = validatorUtils;
+    this.dependencyStorage = dependencyStorage;
+    this.dependencyDownloader = dependencyDownloader;
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
@@ -63,7 +67,7 @@ public class ArchiveUnthinner {
     List<StartupDependencyDetails> newDependencies = new ArrayList<>();
 
     for (StartupDependencyDetails d : dependencies) {
-      if (mustDownloadDependency(d)) {
+      if (!this.dependencyStorage.dependencyExistsAndIsValidated(d)) {
         newDependencies.add(d);
       } else {
         existingDependencies.add(d);
@@ -78,19 +82,19 @@ public class ArchiveUnthinner {
 
     // A set of filename strings representing jars that have been either modified or deleted during
     // the execution of one or more validators.
-    Set<String> modifiedJars = reports.values()
+    Set<String> modifiedFiles = reports.values()
         .stream()
         .map(r -> r.getModifiedFiles())
         .flatMap(set -> set.stream())
         .collect(Collectors.toSet());
 
     // Check if any files were deleted or modified in the bundle
-    if (!reports.values().stream().allMatch(r -> r.getModifiedFiles().isEmpty())) {
+    if (!modifiedFiles.isEmpty()) {
       // At least one file was deleted or modified in the bundle
       // We need to figure out which ones were modified and which weren't
       for (StartupDependencyFile f : downloadedDependencies) {
         try {
-          if (f.getFile().exists() && ) {
+          if (f.getFile().exists() && !modifiedFiles.contains(f.getDetails().getFile())) {
             unmodifiedDependencies.add(f);
           }
         } catch (Exception e) {
@@ -118,8 +122,11 @@ public class ArchiveUnthinner {
     // then delete them from the project directory - they do not need to be included in the thin archive
     // because they can be downloaded from storage when needed.
     for (StartupDependencyFile f : unmodifiedDependencies) {
-      this.storage.putDependency(f.getFile(), f.getDetails().getFile(), f.getDetails().getSHA1());
-      dependenciesInStorage.add(f.getDetails());
+      try {
+        this.dependencyStorage.persistDependency(f);
+      } catch (Exception e) {
+        throw new ProjectManagerException(e.getMessage(), e);
+      }
       f.getFile().delete();
     }
 
@@ -131,33 +138,12 @@ public class ArchiveUnthinner {
     for (StartupDependencyDetails d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
       try {
-        DependencyDownloader.downloadDependency(downloadedJar, d);
+        this.dependencyDownloader.downloadDependency(downloadedJar, d);
       } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFile(), e);
       }
       downloadedFiles.add(new StartupDependencyFile(downloadedJar, d));
     }
     return downloadedFiles;
-  }
-
-  private boolean mustDownloadDependency(final StartupDependencyDetails d) {
-    // See if our in-memory cache of dependencies in storage already has this dependency listed
-    // If it does, no need to download! It must already be in storage.
-    if (dependenciesInStorage.contains(d)) return false;
-
-    // Check if the dependency exists in storage
-    try {
-      if (this.storage.existsDependency(d.getFile(), d.getSHA1())) {
-        // It does, so we need to update our in-memory cache list
-        dependenciesInStorage.add(d);
-        return false;
-      }
-    } catch (IOException e) {
-      throw new ProjectManagerException("Unable to check for existence of dependency in storage: "
-          + d.getFile(), e);
-    }
-
-    // We couldn't find this dependency in storage, it must be downloaded from artifactory
-    return true;
   }
 }

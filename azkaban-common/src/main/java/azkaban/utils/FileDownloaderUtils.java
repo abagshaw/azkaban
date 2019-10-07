@@ -10,10 +10,10 @@ import java.nio.channels.ReadableByteChannel;
 
 
 public class FileDownloaderUtils {
-  public static void downloadToFile(File destination, String fromURL) throws IOException {
+  public static void downloadToFile(File destination, URL fromURL) throws IOException {
     FileOutputStream fileOS = new FileOutputStream(destination, false);
     FileChannel writeChannel = fileOS.getChannel();
-    ReadableByteChannel readChannel = Channels.newChannel(new URL(fromURL).openStream());
+    ReadableByteChannel readChannel = Channels.newChannel(fromURL.openStream());
     writeChannel.transferFrom(readChannel, 0, Long.MAX_VALUE);
   }
 }

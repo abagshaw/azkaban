@@ -60,6 +60,12 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
+  public void testConvertIvyCoordinateToPath() throws Exception {
+    assertEquals(ThinArchiveTestSampleData.getDepAPath(),
+        ThinArchiveUtils.convertIvyCoordinateToPath(ThinArchiveTestSampleData.getDepA()));
+  }
+
+  @Test
   public void testValidateDependencyHashValid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
     FileUtils.writeStringToFile(depFile, ThinArchiveTestSampleData.getDepAContent());
