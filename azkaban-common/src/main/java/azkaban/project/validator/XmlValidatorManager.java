@@ -49,6 +49,11 @@ public class XmlValidatorManager implements ValidatorManager {
   private static ValidatorClassLoader validatorLoader;
   private final String validatorDirPath;
   private Map<String, ProjectValidator> validators;
+  private Map<String, ProjectValidatorCacheable> cacheableValidators;
+
+  private File projectDir;
+  private Project project;
+  private Map<String, ValidationReport> reports;
 
   /**
    * Load the validator plugins from the validator directory (default being validators/) into the
@@ -56,7 +61,11 @@ public class XmlValidatorManager implements ValidatorManager {
    * loadValidators() method.
    */
   // Todo jamiesjc: guicify XmlValidatorManager class
-  public XmlValidatorManager(final Props props) {
+  public XmlValidatorManager(final Props props, final Project project, final File projectDir) {
+    this.project = project;
+    this.projectDir = projectDir;
+    this.reports = new HashMap<>();
+
     this.validatorDirPath = props
         .getString(ValidatorConfigs.VALIDATOR_PLUGIN_DIR, ValidatorConfigs.DEFAULT_VALIDATOR_DIR);
     final File validatorDir = new File(this.validatorDirPath);
@@ -128,6 +137,7 @@ public class XmlValidatorManager implements ValidatorManager {
   @Override
   public void loadValidators(final Props props, final Logger log) {
     this.validators = new LinkedHashMap<>();
+    this.cacheableValidators = new LinkedHashMap<>();
     if (!props.containsKey(ValidatorConfigs.XML_FILE_PARAM)) {
       logger.warn(
           "Azkaban properties file does not contain the key " + ValidatorConfigs.XML_FILE_PARAM);
@@ -193,6 +203,7 @@ public class XmlValidatorManager implements ValidatorManager {
     }
     final String className = classNameAttr.getNodeValue();
     try {
+      // Attempt to instantiate original ProjectValidator
       final Class<? extends ProjectValidator> validatorClass =
           (Class<? extends ProjectValidator>) validatorLoader.loadClass(className);
       final Constructor<?> validatorConstructor =
@@ -201,9 +212,21 @@ public class XmlValidatorManager implements ValidatorManager {
       validator.initialize(props);
       this.validators.put(validator.getValidatorName(), validator);
       logger.info("Added validator " + className + " to list of validators.");
-    } catch (final Exception e) {
-      logger.error("Could not instantiate ProjectValidator " + className);
-      throw new ValidatorManagerException(e);
+    } catch (final Exception e1) {
+      // Attempt to instantiate new ProjectValidatorCacheable
+      try {
+        final Class<? extends ProjectValidatorCacheable> validatorClass =
+            (Class<? extends ProjectValidatorCacheable>) validatorLoader.loadClass(className);
+        final Constructor<?> validatorConstructor =
+            validatorClass.getConstructor(Logger.class);
+        final ProjectValidatorCacheable validator = (ProjectValidatorCacheable) validatorConstructor.newInstance(log);
+        validator.initialize(props, project, projectDir);
+        this.cacheableValidators.put(validator.getValidatorName(), validator);
+        logger.info("Added validator " + className + " to list of cacheable validators.");
+      } catch (Exception e2) {
+        logger.error("Could not instantiate ProjectValidator or ProjectValidatorCacheable " + className);
+        throw new ValidatorManagerException(e2);
+      }
     }
   }
 
@@ -216,6 +239,15 @@ public class XmlValidatorManager implements ValidatorManager {
           + "pair. The 'key' or 'value' attribute doesn't exist");
     }
     props.put(keyAttr.getNodeValue(), valueAttr.getNodeValue());
+  }
+
+  @Override
+  public String getCacheKey() {
+    StringBuilder compoundedKey = new StringBuilder();
+    for (final Entry<String, ProjectValidatorCacheable> validator : this.cacheableValidators.entrySet()) {
+      compoundedKey.append(validator.getValue().getCacheKey());
+    }
+    return compoundedKey;
   }
 
   @Override

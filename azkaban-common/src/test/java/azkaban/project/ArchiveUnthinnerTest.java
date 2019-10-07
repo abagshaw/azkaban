@@ -22,6 +22,7 @@ import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.DependencyDownloader;
+import azkaban.utils.DependencyStorage;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
@@ -32,36 +33,36 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(DependencyDownloader.class)
 public class ArchiveUnthinnerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
+
+  public final String VALIDATION_KEY = "123";
+  public final String EMPTY_VALIDATION_KEY = "";
 
   private final Project project = new Project(107, "Test_Project");
   private File projectFolder;
 
   private ArchiveUnthinner archiveUnthinner;
   private ValidatorUtils validatorUtils;
-  private Storage storage;
+  private DependencyStorage dependencyStorage;
+  private DependencyDownloader dependencyDownloader;
 
   @Before
   public void setUp() throws Exception {
-    this.storage = mock(Storage.class);
     this.validatorUtils = mock(ValidatorUtils.class);
-    this.archiveUnthinner = new ArchiveUnthinner(this.storage, this.validatorUtils);
+    this.dependencyStorage = mock(DependencyStorage.class);
+    this.dependencyDownloader = mock(DependencyDownloader.class);
+    this.archiveUnthinner = new ArchiveUnthinner(this.validatorUtils,
+        this.dependencyStorage, this.dependencyDownloader);
 
     // Create test project directory
     // ../
@@ -79,8 +80,6 @@ public class ArchiveUnthinnerTest {
 
   @Test
   public void testFreshUncachedValidProject() throws Exception {
-    PowerMockito.mockStatic(DependencyDownloader.class);
-
     StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
     StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
     File depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
@@ -89,12 +88,11 @@ public class ArchiveUnthinnerTest {
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
 
     // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.storage.existsDependency(depA.getFile(), depA.getSHA1())).thenReturn(false);
-    when(this.storage.existsDependency(depB.getFile(), depB.getSHA1())).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATION_KEY)).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATION_KEY)).thenReturn(false);
 
-    // When ArtifactoryDownloaderUtils.downloadDependency() is called,
-    // write the content to the file as if it was downloaded
-    PowerMockito.doAnswer((Answer) invocation -> {
+    // When downloadDependency() is called, write the content to the file as if it was downloaded
+    doAnswer((Answer) invocation -> {
       File destFile = (File) invocation.getArguments()[0];
       StartupDependencyDetails requestDependency = (StartupDependencyDetails) invocation.getArguments()[1];
 
@@ -104,8 +102,8 @@ public class ArchiveUnthinnerTest {
 
       FileUtils.writeStringToFile(destFile, contentToWrite);
       return null;
-    }).when(DependencyDownloader.class, "downloadDependency",
-        Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
+    }).when(this.dependencyDownloader)
+        .downloadDependency(Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
@@ -119,10 +117,10 @@ public class ArchiveUnthinnerTest {
     assertEquals(result, new HashMap<>());
 
     // Verify that dependencies were persisted to storage
-    verify(this.storage, Mockito.times(1))
-        .putDependency(Mockito.any(File.class), eq(depA.getFile()), eq(depA.getSHA1()));
-    verify(this.storage, Mockito.times(1))
-        .putDependency(Mockito.any(File.class), eq(depB.getFile()), eq(depB.getSHA1()));
+    verify(this.dependencyStorage, Mockito.times(1))
+        .persistDependency(eq(depA), VALIDATION_KEY, Mockito.any(File.class));
+    verify(this.dependencyStorage, Mockito.times(1))
+        .persistDependency(eq(depB), VALIDATION_KEY, Mockito.any(File.class));
 
     // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);

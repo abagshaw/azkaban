@@ -14,11 +14,14 @@ import org.slf4j.LoggerFactory;
 public class ValidatorUtils {
   private static final Logger logger = LoggerFactory.getLogger(ValidatorUtils.class);
 
+  private final ValidatorManager validatorManager;
+
   final Props prop;
 
   @Inject
   public ValidatorUtils(final Props prop) {
     this.prop = prop;
+    this.validatorManager = new XmlValidatorManager(this.prop);
   }
 
   public Map<String, ValidationReport> validateProject(final Project project, final File folder) {

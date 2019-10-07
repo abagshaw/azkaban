@@ -26,6 +26,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FileUtils;
 
 
 /**
@@ -56,6 +57,12 @@ public enum HashUtils {
       // Should never get here.
     }
     return digest;
+  }
+
+  public byte[] getHash(final String str) throws IOException {
+    final MessageDigest digest = getDigest();
+    digest.update(str.getBytes());
+    return digest.digest();
   }
 
   public byte[] getHash(final File file) throws IOException {

@@ -129,7 +129,7 @@ class AzkabanProjectLoader {
           : this.validatorUtils.validateProject(project, folder);
 
       // If the project folder has been modified, update the project zip
-      if (!reports.values().stream().allMatch(r -> r.getModifiedFiles().isEmpty())) {
+      if (reports.values().stream().anyMatch(r -> !r.getModifiedFiles().isEmpty())) {
         updateProjectZip(archive, folder);
       }
 

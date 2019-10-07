@@ -78,6 +78,8 @@ public class ArchiveUnthinner {
     final List<StartupDependencyFile> downloadedDependencies = downloadDependencyFiles(projectFolder, newDependencies);
 
     Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder);
+    if (reports.values().stream().anyMatch())
+
     List<StartupDependencyFile> unmodifiedDependencies = new ArrayList<>();
 
     // A set of filename strings representing jars that have been either modified or deleted during
