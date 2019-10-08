@@ -92,7 +92,8 @@ public class ArchiveUnthinner {
 
     // See if all downloaded dependencies were unmodified
     if (untouchedNewDependencies.size() < downloadedDependencies.size()) {
-      // There were some modified dependencies, so we need to remove them from the startup-dependencies.json file.
+      // There were some modified or deleted dependencies,
+      // so we need to remove them from the startup-dependencies.json file.
       rewriteStartupDependencies(startupDependenciesFile, untouchedNewDependencies, existingDependencies);
     }
 

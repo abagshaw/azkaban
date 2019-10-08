@@ -22,31 +22,25 @@ import azkaban.spi.StartupDependencyDetails;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyStorage;
-import azkaban.utils.FileDownloaderUtils;
-import azkaban.utils.Props;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(DependencyDownloader.class)
 public class ArchiveUnthinnerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
@@ -56,10 +50,17 @@ public class ArchiveUnthinnerTest {
   private final Project project = new Project(107, "Test_Project");
   private File projectFolder;
 
+  private StartupDependencyDetails depA;
+  private StartupDependencyDetails depB;
+  private File depAInArtifactory;
+  private File depBInArtifactory;
+
   private ArchiveUnthinner archiveUnthinner;
   private ValidatorUtils validatorUtils;
   private DependencyStorage dependencyStorage;
   private DependencyDownloader dependencyDownloader;
+
+
 
   @Before
   public void setUp() throws Exception {
@@ -80,25 +81,15 @@ public class ArchiveUnthinnerTest {
     libFolder.mkdirs();
     FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
     FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
-        ThinArchiveTestSampleData.getRawJSON());
-  }
+        ThinArchiveTestSampleData.getRawJSONBothDeps());
 
-  @Test
-  public void testFreshUncachedValidProject() throws Exception {
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
-    StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
-    File depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
-    File depBInArtifactory = TEMP_DIR.newFile(depB.getFile());
+    // Setup sample dependencies
+    depA = ThinArchiveTestSampleData.getDepA();
+    depB = ThinArchiveTestSampleData.getDepB();
+    depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
+    depBInArtifactory = TEMP_DIR.newFile(depB.getFile());
     FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
-
-    // Indicate that the dependencies are not validated, forcing them to be downloaded from artifactory
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
-
-    // When the unthinner attempts to get a validatorKey for the project, return our sample one.
-    when(this.validatorUtils.getCacheKey(eq(this.project), eq(this.projectFolder), any()))
-        .thenReturn(VALIDATOR_KEY);
 
     // When downloadDependency() is called, write the content to the file as if it was downloaded
     doAnswer((Answer) invocation -> {
@@ -113,6 +104,17 @@ public class ArchiveUnthinnerTest {
       return null;
     }).when(this.dependencyDownloader)
         .downloadDependency(any(File.class), any(StartupDependencyDetails.class));
+
+    // When the unthinner attempts to get a validatorKey for the project, return our sample one.
+    when(this.validatorUtils.getCacheKey(eq(this.project), eq(this.projectFolder), any()))
+        .thenReturn(VALIDATOR_KEY);
+  }
+
+  @Test
+  public void testFreshUncachedValidProject() throws Exception {
+    // Indicate that the dependencies are not validated, forcing them to be downloaded from artifactory
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
@@ -138,163 +140,86 @@ public class ArchiveUnthinnerTest {
 
     // Verify that the startup-dependencies.json file is NOT modified
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONBothDeps(), finalJSON, false);
   }
 
   @Test
   public void testComplexPartialFreshValidProject() throws Exception {
-    PowerMockito.mockStatic(DependencyDownloader.class);
-
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
-    StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
-    File depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
-    File depBInArtifactory = TEMP_DIR.newFile(depB.getFile());
-    FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
-    FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
-
     // Indicate that the depA is validated, but depB is not (forcing depB to be downloaded)
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(true);
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
-    // When ArtifactoryDownloaderUtils.downloadDependency() is called,
-    // write the content to the file as if it was downloaded
-    PowerMockito.doAnswer((Answer) invocation -> {
-      File destFile = (File) invocation.getArguments()[0];
-      StartupDependencyDetails requestDependency = (StartupDependencyDetails) invocation.getArguments()[1];
-
-      String contentToWrite = requestDependency.equals(depA) ?
-          ThinArchiveTestSampleData.getDepAContent() :
-          ThinArchiveTestSampleData.getDepBContent();
-
-      FileUtils.writeStringToFile(destFile, contentToWrite);
-      return null;
-    }).when(DependencyDownloader.class, "downloadDependency",
-        Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
-
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
-    when(this.validatorUtils.validateProject(this.project, this.projectFolder)).thenReturn(new HashMap<>());
+    when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
+        .thenReturn(new HashMap<>());
 
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
-        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile);
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
 
     // Verify that ValidationReport is as expected (empty)
     assertEquals(result, new HashMap<>());
 
-    // Verify that only depB was persisted to storage, but not depA
-    verify(this.storage, Mockito.never()).putDependency(Mockito.any(File.class), eq(depA.getFile()), eq(depA.getSHA1()));
-    verify(this.storage, Mockito.times(1))
-        .putDependency(Mockito.any(File.class), eq(depB.getFile()), eq(depB.getSHA1()));
+    // Verify that ONLY depB was persisted to storage, but NOT depA
+    verify(this.dependencyStorage, Mockito.never())
+        .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
+    verify(this.dependencyStorage, Mockito.times(1))
+        .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
 
     // Verify that the startup-dependencies.json file is NOT modified
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);
-
-    // ***********************
-    // *** RUN SECOND TIME ***
-    // ***********************
-    reset(this.storage);
-
-    result = this.archiveUnthinner
-        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile);
-
-    // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
-
-    // Verify that .exists() was not called on storage (should hit in-memory cache instead)
-    verify(this.storage, Mockito.never()).existsDependency(Mockito.any(), Mockito.any());
-
-    // Verify that no dependencies were persisted to storage
-    verify(this.storage, Mockito.never()).putDependency(Mockito.any(), Mockito.any(), Mockito.any());
-
-    // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
-    assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
-
-    // Verify that the startup-dependencies.json file is NOT modified
-    finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONBothDeps(), finalJSON, false);
   }
 
   @Test
   public void testValidatorDeleteFile() throws Exception {
-    /*PowerMockito.mockStatic(ArtifactoryDownloaderUtils.class);
-
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
-    StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
-    File depAInArtifactory = TEMP_DIR.newFile(depA.getFile());
-    File depBInArtifactory = TEMP_DIR.newFile(depB.getFile());
-    FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
-    FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
-
     // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.storage.existsDependency(depA.getFile(), depA.getSHA1())).thenReturn(false);
-    when(this.storage.existsDependency(depB.getFile(), depB.getSHA1())).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
-    // When ArtifactoryDownloaderUtils.downloadDependency() is called,
-    // write the content to the file as if it was downloaded
-    PowerMockito.doAnswer((Answer) invocation -> {
-      File destFile = (File) invocation.getArguments()[0];
-      StartupDependencyDetails requestDependency = (StartupDependencyDetails) invocation.getArguments()[1];
+    // When the unthinner attempts to validate the project, return a report indicating that the depA jar
+    // was removed.
+    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFile());
+    Set<File> removedFiles = new HashSet();
+    removedFiles.add(depAInProject);
 
-      String contentToWrite = requestDependency.equals(depA) ?
-          ThinArchiveTestSampleData.getDepAContent() :
-          ThinArchiveTestSampleData.getDepBContent();
+    doAnswer((Answer<Map>) invocation -> {
+      depAInProject.delete();
 
-      FileUtils.writeStringToFile(destFile, contentToWrite);
-      return null;
-    }).when(ArtifactoryDownloaderUtils.class, "downloadDependency",
-        Mockito.any(File.class), Mockito.any(StartupDependencyDetails.class));
+      ValidationReport sampleReport = new ValidationReport();
+      sampleReport.addRemovedFiles(removedFiles);
 
-    // When the unthinner attempts to validate the project, return an empty map (indicating that the
-    // validator found no errors and made no changes to the project)
-    ValidationReport sampleReport = new ValidationReport();
-    sampleReport.setBundleModified(true);
-    doAnswer((Answer) invocation -> {
+      Map<String, ValidationReport> allReports = new HashMap<>();
+      allReports.put("sample", sampleReport);
 
-    })
-    when(this.validatorUtils.validateProject(this.project, this.projectFolder)).thenReturn(new HashMap<>());
+      return allReports;
+    }).when(this.validatorUtils).validateProject(eq(this.project), eq(this.projectFolder), any());
 
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
-        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile);
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
 
-    // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
+    // Verify that ValidationReport indicates the correct removed and modified files.
+    assertEquals(removedFiles, result.get("sample").getRemovedFiles());
+    assertEquals(0, result.get("sample").getModifiedFiles().size());
 
-    // Verify that only depB was persisted to storage, but not depA
-    verify(this.storage, Mockito.never()).putDependency(Mockito.any(File.class), eq(depA.getFile()), eq(depA.getSHA1()));
-    verify(this.storage, Mockito.times(1))
-        .putDependency(Mockito.any(File.class), eq(depB.getFile()), eq(depB.getSHA1()));
-
-    // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
-    assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
-
-    // ***********************
-    // *** RUN SECOND TIME ***
-    // ***********************
-    reset(this.storage);
-
-    result = this.archiveUnthinner
-        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile);
-
-    // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
-
-    // Verify that .exists() was not called on storage (should hit in-memory cache instead)
-    verify(this.storage, Mockito.never()).existsDependency(Mockito.any(), Mockito.any());
-
-    // Verify that no dependencies were persisted to storage
-    verify(this.storage, Mockito.never()).putDependency(Mockito.any(), Mockito.any(), Mockito.any());
+    // Verify that ONLY depB was persisted to storage, but NOT depA
+    verify(this.dependencyStorage, Mockito.never())
+        .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
+    verify(this.dependencyStorage, Mockito.times(1))
+        .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
 
-    // Verify that the startup-dependencies.json file is NOT modified
+    // Verify that the startup-dependencies.json file now contains ONLY depB
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);*/
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepB(), finalJSON, false);
   }
 }

@@ -47,13 +47,13 @@ public class ThinArchiveUtilsTest {
     ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestSampleData.getDepList());
 
     String writtenJSON = FileUtils.readFileToString(outFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), writtenJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONBothDeps(), writtenJSON, false);
   }
 
   @Test
   public void testReadStartupDependencies() throws Exception {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
-    FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSON());
+    FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSONBothDeps());
 
     List<StartupDependencyDetails> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
     assertEquals(ThinArchiveTestSampleData.getDepList(), parsedDependencies);

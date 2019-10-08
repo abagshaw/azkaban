@@ -8,7 +8,7 @@ import java.util.List;
 public class ThinArchiveTestSampleData {
   public static List getDepList() { return Arrays.asList(getDepA(), getDepB()); }
 
-  public static String getRawJSON() {
+  public static String getRawJSONBothDeps() {
     return "{" +
         "    \"dependencies\": [" +
         "        {" +
@@ -18,6 +18,34 @@ public class ThinArchiveTestSampleData {
         "            \"type\": \"jar\"," +
         "            \"ivyCoordinates\": \"com.linkedin.test:testeraaaa:1.0.1\"" +
         "        }," +
+        "        {" +
+        "            \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
+        "            \"file\": \"bbbb.jar\"," +
+        "            \"destination\": \"lib\"," +
+        "            \"type\": \"jar\"," +
+        "            \"ivyCoordinates\": \"com.linkedin.test:testerbbbb:1.0.1\"" +
+        "        }" +
+        "    ]" +
+        "}";
+  }
+
+  public static String getRawJSONDepA() {
+    return "{" +
+        "    \"dependencies\": [" +
+        "        {" +
+        "            \"sha1\": \"131BD316A77423E6B80D93262B576C139C72B4C3\"," +
+        "            \"file\": \"aaaa.jar\"," +
+        "            \"destination\": \"lib\"," +
+        "            \"type\": \"jar\"," +
+        "            \"ivyCoordinates\": \"com.linkedin.test:testeraaaa:1.0.1\"" +
+        "        }" +
+        "    ]" +
+        "}";
+  }
+
+  public static String getRawJSONDepB() {
+    return "{" +
+        "    \"dependencies\": [" +
         "        {" +
         "            \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
         "            \"file\": \"bbbb.jar\"," +
