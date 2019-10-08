@@ -18,7 +18,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import static azkaban.Constants.ConfigurationKeys.*;
-import static org.mockito.Mockito.*;
 
 
 @RunWith(PowerMockRunner.class)

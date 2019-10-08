@@ -22,6 +22,7 @@ import azkaban.spi.StartupDependencyDetails;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyStorage;
+import azkaban.utils.FileDownloaderUtils;
 import azkaban.utils.Props;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
@@ -33,14 +34,19 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DependencyDownloader.class)
 public class ArchiveUnthinnerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
@@ -86,7 +92,7 @@ public class ArchiveUnthinnerTest {
     FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
 
-    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
+    // Indicate that the dependencies are not validated, forcing them to be downloaded from artifactory
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
@@ -137,7 +143,7 @@ public class ArchiveUnthinnerTest {
 
   @Test
   public void testComplexPartialFreshValidProject() throws Exception {
-    /*PowerMockito.mockStatic(DependencyDownloader.class);
+    PowerMockito.mockStatic(DependencyDownloader.class);
 
     StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
     StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepB();
@@ -146,9 +152,9 @@ public class ArchiveUnthinnerTest {
     FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
 
-    // Indicate that the depA is in storage, but depB is not (forcing depB to be downloaded)
-    when(this.storage.existsDependency(depA.getFile(), depA.getSHA1())).thenReturn(true);
-    when(this.storage.existsDependency(depB.getFile(), depB.getSHA1())).thenReturn(false);
+    // Indicate that the depA is validated, but depB is not (forcing depB to be downloaded)
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(true);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When ArtifactoryDownloaderUtils.downloadDependency() is called,
     // write the content to the file as if it was downloaded
@@ -210,7 +216,7 @@ public class ArchiveUnthinnerTest {
 
     // Verify that the startup-dependencies.json file is NOT modified
     finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);*/
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSON(), finalJSON, false);
   }
 
   @Test

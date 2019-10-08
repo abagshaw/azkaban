@@ -82,30 +82,41 @@ public class ArchiveUnthinner {
     }
 
     // Find which dependencies were unmodified
-    List<StartupDependencyFile> unmodifiedNewDependencies = getUnmodifiedDependencies(reports, downloadedDependencies);
+    Set<File> modifiedFiles = getModifiedFiles(reports);
+    Set<File> removedFiles = getRemovedFiles(reports);
+    List<StartupDependencyFile> untouchedNewDependencies =
+        getUntouchedNewDependencies(downloadedDependencies, modifiedFiles, removedFiles);
 
     // Persist the unmodified dependencies
-    persistUnmodifiedDependencies(unmodifiedNewDependencies, validatorKey);
+    persistUntouchedNewDependencies(untouchedNewDependencies, validatorKey);
 
     // See if all downloaded dependencies were unmodified
-    if (unmodifiedNewDependencies.size() < downloadedDependencies.size()) {
+    if (untouchedNewDependencies.size() < downloadedDependencies.size()) {
       // There were some modified dependencies, so we need to remove them from the startup-dependencies.json file.
-      rewriteStartupDependencies(startupDependenciesFile, unmodifiedNewDependencies, existingDependencies);
+      rewriteStartupDependencies(startupDependenciesFile, untouchedNewDependencies, existingDependencies);
     }
 
-    // Delete unmodified new dependencies from the project
-    unmodifiedNewDependencies.stream().forEach(d -> d.getFile().delete());
+    // Delete untouched new dependencies from the project
+    untouchedNewDependencies.stream().forEach(d -> d.getFile().delete());
 
     return reports;
   }
 
+  private List<StartupDependencyFile> getUntouchedNewDependencies(List<StartupDependencyFile> downloadedDependencies,
+      Set<File> modifiedFiles, Set<File> removedFiles) {
+    return downloadedDependencies
+        .stream()
+        .filter(d -> !modifiedFiles.contains(d.getFile()) && !removedFiles.contains(d.getFile()))
+        .collect(Collectors.toList());
+  }
+
   private void rewriteStartupDependencies(File startupDependenciesFile,
-      List<StartupDependencyFile> unmodifiedNewDependencies, List<StartupDependencyDetails> existingDependencies) {
+      List<StartupDependencyFile> untouchedNewDependencies, List<StartupDependencyDetails> existingDependencies) {
     // Get the final list of startup dependencies that will be downloadable from storage
     List<StartupDependencyDetails> finalDependencies = new ArrayList<>();
     finalDependencies.addAll(existingDependencies);
     finalDependencies.addAll(
-        unmodifiedNewDependencies.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()));
+        untouchedNewDependencies.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()));
 
     // Write this list back to the startup-dependencies.json file
     try {
@@ -122,44 +133,28 @@ public class ArchiveUnthinner {
     }
   }
 
-  private List<StartupDependencyFile> getUnmodifiedDependencies(Map<String, ValidationReport> reports,
-      List<StartupDependencyFile> downloadedDependencies) {
-    List<StartupDependencyFile> unmodifiedDependencies = new ArrayList<>();
-
-    // A set of filename strings representing jars that have been either modified or deleted during
-    // the execution of one or more validators.
-    Set<String> modifiedFiles = reports.values()
+  private Set<File> getModifiedFiles(Map<String, ValidationReport> reports) {
+    return reports.values()
         .stream()
         .map(r -> r.getModifiedFiles())
         .flatMap(set -> set.stream())
         .collect(Collectors.toSet());
-
-    // Check if any files were deleted or modified in the bundle
-    if (!modifiedFiles.isEmpty()) {
-      // At least one file was deleted or modified in the bundle
-      // We need to figure out which ones were modified and which weren't
-      for (StartupDependencyFile f : downloadedDependencies) {
-        try {
-          if (f.getFile().exists() && !modifiedFiles.contains(f.getDetails().getFile())) {
-            unmodifiedDependencies.add(f);
-          }
-        } catch (Exception e) {
-          throw new ProjectManagerException("Error while checking modified files during project validation.", e);
-        }
-      }
-    } else {
-      // No files were deleted or modified in the bundle, so all files are unmodified
-      unmodifiedDependencies = downloadedDependencies;
-    }
-
-    return unmodifiedDependencies;
   }
 
-  private void persistUnmodifiedDependencies(List<StartupDependencyFile> unmodifiedDependencies, String validatorKey) {
-    // Loop through unmodified dependency files, persist them in storage, add them to in-memory cache
+  private Set<File> getRemovedFiles(Map<String, ValidationReport> reports) {
+    return reports.values()
+        .stream()
+        .map(r -> r.getRemovedFiles())
+        .flatMap(set -> set.stream())
+        .collect(Collectors.toSet());
+  }
+
+  private void persistUntouchedNewDependencies(List<StartupDependencyFile> untouchedNewDependencies,
+      String validatorKey) {
+    // Loop through new untouched dependency files, persist them in storage, add them to in-memory cache
     // then delete them from the project directory - they do not need to be included in the thin archive
     // because they can be downloaded from storage when needed.
-    for (StartupDependencyFile f : unmodifiedDependencies) {
+    for (StartupDependencyFile f : untouchedNewDependencies) {
       try {
         this.dependencyStorage.persistDependency(f.getFile(), f.getDetails(), validatorKey);
       } catch (Exception e) {

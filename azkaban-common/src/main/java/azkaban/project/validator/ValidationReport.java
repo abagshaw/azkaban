@@ -1,5 +1,6 @@
 package azkaban.project.validator;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,13 +14,15 @@ import java.util.Set;
 public class ValidationReport {
 
   protected ValidationStatus _status;
-  protected Set<String> _modifiedFiles;
+  protected Set<File> _removedFiles;
+  protected Set<File> _modifiedFiles;
   protected Set<String> _infoMsgs;
   protected Set<String> _warningMsgs;
   protected Set<String> _errorMsgs;
 
   public ValidationReport() {
     this._status = ValidationStatus.PASS;
+    this._removedFiles = new HashSet<>();
     this._modifiedFiles = new HashSet<>();
     this._infoMsgs = new HashSet<>();
     this._warningMsgs = new HashSet<>();
@@ -95,17 +98,17 @@ public class ValidationReport {
   }
 
   /**
-   * Add a set of modified filenames
+   * Add a set of modified files
    */
-  public void addModifiedFiles(final Set<String> files) {
+  public void addModifiedFiles(final Set<File> files) {
     this._modifiedFiles.addAll(files);
   }
 
   /**
-   * Add one modified file
+   * Add a set of removed files
    */
-  public void addModifiedFile(final String file) {
-    this._modifiedFiles.add(file);
+  public void addRemovedFiles(final Set<File> files) {
+    this._removedFiles.addAll(files);
   }
 
   /**
@@ -137,7 +140,12 @@ public class ValidationReport {
   }
 
   /**
-   * Get the set of modified file names
+   * Get the set of modified files
    */
-  public Set<String> getModifiedFiles() { return this._modifiedFiles; }
+  public Set<File> getModifiedFiles() { return this._modifiedFiles; }
+
+  /**
+   * Get the set of removed files
+   */
+  public Set<File> getRemovedFiles() { return this._removedFiles; }
 }
