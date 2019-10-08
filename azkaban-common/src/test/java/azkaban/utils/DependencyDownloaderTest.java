@@ -53,7 +53,7 @@ public class DependencyDownloaderTest {
       return null;
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(URL.class));
 
-    File destinationFile = TEMP_DIR.newFile("aaaa.jar");
+    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     this.dependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(1));
@@ -78,7 +78,7 @@ public class DependencyDownloaderTest {
       return null;
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(URL.class));
 
-    File destinationFile = TEMP_DIR.newFile("aaaa.jar");
+    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     this.dependencyDownloader.downloadDependency(destinationFile, ThinArchiveTestSampleData.getDepA());
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(2));
@@ -95,7 +95,7 @@ public class DependencyDownloaderTest {
       return null;
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.any(File.class), Mockito.any(URL.class));
 
-    File destinationFile = TEMP_DIR.newFile("aaaa.jar");
+    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
 
     boolean hitException = false;
     try {

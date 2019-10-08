@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.HashUtils;
 import java.io.BufferedReader;
 import java.io.File;
@@ -110,24 +111,23 @@ public class LocalStorageTest {
 
   @Test
   public void testPutGetExistsDependency() throws Exception {
-    final String testContent = "abcd123";
-    final File tmpJar = TEMP_DIR.newFile("a.jar");
-    FileUtils.writeStringToFile(tmpJar, testContent);
+    final File tmpJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
+    FileUtils.writeStringToFile(tmpJar, ThinArchiveTestSampleData.getDepAContent());
 
-    this.localStorage.putDependency(tmpJar, "a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
-    final File expectedTargetFile = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER +
-        File.separator + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar");
+    this.localStorage.putDependency(tmpJar, ThinArchiveTestSampleData.getDepA());
+    final File expectedTargetFile = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER
+        + File.separator + ThinArchiveTestSampleData.getDepAPath());
 
     assertTrue(expectedTargetFile.exists());
 
     final InputStream is =
-        this.localStorage.getDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+        this.localStorage.getDependency(ThinArchiveTestSampleData.getDepA());
 
     BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
     String fileContent = br.lines().collect(Collectors.joining(System.lineSeparator()));
 
-    assertEquals(testContent, fileContent);
+    assertEquals(ThinArchiveTestSampleData.getDepAContent(), fileContent);
 
-    assertTrue(this.localStorage.existsDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709"));
+    assertTrue(this.localStorage.existsDependency(ThinArchiveTestSampleData.getDepA()));
   }
 }

@@ -87,10 +87,9 @@ public class ArchiveUnthinner {
     // Persist the unmodified dependencies
     persistUnmodifiedDependencies(unmodifiedNewDependencies, validatorKey);
 
-    // Get the final list of startup dependencies that will be downloadable from storage
+    // See if all downloaded dependencies were unmodified
     if (unmodifiedNewDependencies.size() < downloadedDependencies.size()) {
-      // There were some modified dependencies, so we need to edit the startup-dependencies.json file
-      // to exclude them.
+      // There were some modified dependencies, so we need to remove them from the startup-dependencies.json file.
       rewriteStartupDependencies(startupDependenciesFile, unmodifiedNewDependencies, existingDependencies);
     }
 
@@ -102,6 +101,7 @@ public class ArchiveUnthinner {
 
   private void rewriteStartupDependencies(File startupDependenciesFile,
       List<StartupDependencyFile> unmodifiedNewDependencies, List<StartupDependencyDetails> existingDependencies) {
+    // Get the final list of startup dependencies that will be downloadable from storage
     List<StartupDependencyDetails> finalDependencies = new ArrayList<>();
     finalDependencies.addAll(existingDependencies);
     finalDependencies.addAll(

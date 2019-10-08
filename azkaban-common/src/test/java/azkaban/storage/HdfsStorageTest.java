@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.HashUtils;
 import java.io.File;
 import java.net.URI;
@@ -81,28 +82,28 @@ public class HdfsStorageTest {
 
   @Test
   public void testGetDependency() throws Exception {
-    this.hdfsStorage.getDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    this.hdfsStorage.getDependency(ThinArchiveTestSampleData.getDepA());
     verify(this.hdfs).open(new Path("/path/to/foo/"
             + HdfsStorage.DEPENDENCY_FOLDER + "/"
-            + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar"));
+            + ThinArchiveTestSampleData.getDepAPath()));
   }
 
   @Test
   public void testExistsDependency() throws Exception {
-    this.hdfsStorage.existsDependency("a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    this.hdfsStorage.existsDependency(ThinArchiveTestSampleData.getDepA());
     verify(this.hdfs).exists(new Path("/path/to/foo/"
         + HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar"));
+        + ThinArchiveTestSampleData.getDepAPath()));
   }
 
   @Test
   public void testPutDependency() throws Exception {
-    final File tmpEmptyJar = TEMP_DIR.newFile("a.jar");
-    this.hdfsStorage.putDependency(tmpEmptyJar, "a.jar", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    final File tmpEmptyJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
+    this.hdfsStorage.putDependency(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
 
     final String expectedPath = "/path/to/foo/" +
         HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + "a-da39a3ee5e6b4b0d3255bfef95601890afd80709.jar";
+        + ThinArchiveTestSampleData.getDepAPath();
     verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), new Path(expectedPath));
   }
 

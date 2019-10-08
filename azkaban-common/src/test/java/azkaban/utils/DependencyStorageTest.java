@@ -44,7 +44,7 @@ public class DependencyStorageTest {
     // Indicate that the jar is not already in storage
     when(this.storage.existsDependency(ThinArchiveTestSampleData.getDepA())).thenReturn(false);
 
-    File someFile = TEMP_DIR.newFile("aaaa.jar");
+    File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     verify(this.storage).putDependency(someFile, ThinArchiveTestSampleData.getDepA());
@@ -56,7 +56,7 @@ public class DependencyStorageTest {
     // Indicate that the jar IS already in storage
     when(this.storage.existsDependency(ThinArchiveTestSampleData.getDepA())).thenReturn(true);
 
-    File someFile = TEMP_DIR.newFile("aaaa.jar");
+    File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     // The dependency is already in storage, so we should not try to persist it to storage!
@@ -73,7 +73,7 @@ public class DependencyStorageTest {
     SQLException duplicatePrimaryKey = new SQLException(null, null, 1062);
     doThrow(duplicatePrimaryKey).when(this.dbOperator.update(Mockito.any()));
 
-    File someFile = TEMP_DIR.newFile("aaaa.jar");
+    File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     // The SQLException should be swallowed because even though we couldn't insert, we know that
     // the row already exists.
     this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
@@ -90,7 +90,7 @@ public class DependencyStorageTest {
     SQLException duplicatePrimaryKey = new SQLException(null, null, 8271);
     doThrow(duplicatePrimaryKey).when(this.dbOperator.update(Mockito.any()));
 
-    File someFile = TEMP_DIR.newFile("aaaa.jar");
+    File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     // We should get an error thrown because of a failed SQL insert.
     this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
   }

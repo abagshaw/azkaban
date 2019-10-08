@@ -23,13 +23,11 @@ public class ValidatorUtils {
     logger.info("XmlValidatorManager instance created.");
   }
 
-  public String getCacheKey(final Project project, final File folder,
-      final Props props) {
+  public String getCacheKey(final Project project, final File folder, final Props props) {
     return this.validatorManager.getCacheKey(project, folder, props);
   }
 
-  public Map<String, ValidationReport> validateProject(final Project project, final File folder,
-      final Props props) {
+  public Map<String, ValidationReport> validateProject(final Project project, final File folder, final Props props) {
     logger.info("Validating project " + project.getName()
         + " using the registered validators "
         + this.validatorManager.getValidatorsInfo().toString());
