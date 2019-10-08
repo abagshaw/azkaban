@@ -53,15 +53,8 @@ public class ArchiveUnthinner {
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File projectFolder, final File startupDependenciesFile, final Props additionalProps)
-      throws ProjectManagerException {
-
-    List<StartupDependencyDetails> dependencies;
-    try {
-      dependencies = parseStartupDependencies(startupDependenciesFile);
-    } catch (IOException e) {
-      throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
-    }
+      final File projectFolder, final File startupDependenciesFile, final Props additionalProps) {
+    List<StartupDependencyDetails> dependencies = getDependenciesList(startupDependenciesFile);
 
     String validatorKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
 
@@ -69,25 +62,18 @@ public class ArchiveUnthinner {
     List<StartupDependencyDetails> existingDependencies = new ArrayList<>();
     // newDependencies: dependencies that are not in storage and need to be verified
     List<StartupDependencyDetails> newDependencies = new ArrayList<>();
-
     for (StartupDependencyDetails d : dependencies) {
-      try {
-        if (!this.dependencyStorage.dependencyExistsAndIsValidated(d, validatorKey)) {
-          newDependencies.add(d);
-        } else {
-          existingDependencies.add(d);
-        }
-      } catch (SQLException e) {
-        throw new ProjectManagerException(
-            String.format("Unable to query DB to see if dependency exists in storage and is validated."
-              + "Dependency Name: %s Dependency Hash: %s Validator Cache Key: %s",
-                d.getFile(), d.getSHA1(), validatorKey), e);
+      if (isExistingDependency(d, validatorKey)) {
+        existingDependencies.add(d);
+      } else {
+        newDependencies.add(d);
       }
     }
 
     // Download the new dependencies
     final List<StartupDependencyFile> downloadedDependencies = downloadDependencyFiles(projectFolder, newDependencies);
 
+    // Validate the project
     Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder, additionalProps);
     if (reports.values().stream().anyMatch(r -> r.getStatus() == ValidationStatus.ERROR)) {
       // No point continuing, this project has been rejected, so just return the validation report
@@ -95,6 +81,49 @@ public class ArchiveUnthinner {
       return reports;
     }
 
+    // Find which dependencies were unmodified
+    List<StartupDependencyFile> unmodifiedNewDependencies = getUnmodifiedDependencies(reports, downloadedDependencies);
+
+    // Persist the unmodified dependencies
+    persistUnmodifiedDependencies(unmodifiedNewDependencies, validatorKey);
+
+    // Get the final list of startup dependencies that will be downloadable from storage
+    if (unmodifiedNewDependencies.size() < downloadedDependencies.size()) {
+      // There were some modified dependencies, so we need to edit the startup-dependencies.json file
+      // to exclude them.
+      rewriteStartupDependencies(startupDependenciesFile, unmodifiedNewDependencies, existingDependencies);
+    }
+
+    // Delete unmodified new dependencies from the project
+    unmodifiedNewDependencies.stream().forEach(d -> d.getFile().delete());
+
+    return reports;
+  }
+
+  private void rewriteStartupDependencies(File startupDependenciesFile,
+      List<StartupDependencyFile> unmodifiedNewDependencies, List<StartupDependencyDetails> existingDependencies) {
+    List<StartupDependencyDetails> finalDependencies = new ArrayList<>();
+    finalDependencies.addAll(existingDependencies);
+    finalDependencies.addAll(
+        unmodifiedNewDependencies.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()));
+
+    // Write this list back to the startup-dependencies.json file
+    try {
+      writeStartupDependencies(startupDependenciesFile, finalDependencies);
+    } catch (IOException e) {
+      throw new ProjectManagerException("Error while writing new startup-dependencies.json", e);
+    }
+  }
+  private List<StartupDependencyDetails> getDependenciesList(File startupDependenciesFile) {
+    try {
+      return parseStartupDependencies(startupDependenciesFile);
+    } catch (IOException e) {
+      throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
+    }
+  }
+
+  private List<StartupDependencyFile> getUnmodifiedDependencies(Map<String, ValidationReport> reports,
+      List<StartupDependencyFile> downloadedDependencies) {
     List<StartupDependencyFile> unmodifiedDependencies = new ArrayList<>();
 
     // A set of filename strings representing jars that have been either modified or deleted during
@@ -118,23 +147,15 @@ public class ArchiveUnthinner {
           throw new ProjectManagerException("Error while checking modified files during project validation.", e);
         }
       }
-
-      // Get the final list of startup dependencies that will be downloadable from storage
-      List<StartupDependencyDetails> finalDependencies = new ArrayList<>();
-      finalDependencies.addAll(existingDependencies);
-      finalDependencies.addAll(
-          unmodifiedDependencies.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()));
-      // Write this list back to the startup-dependencies.json file
-      try {
-        writeStartupDependencies(startupDependenciesFile, finalDependencies);
-      } catch (IOException e) {
-        throw new ProjectManagerException("Error while writing new startup-dependencies.json", e);
-      }
     } else {
       // No files were deleted or modified in the bundle, so all files are unmodified
       unmodifiedDependencies = downloadedDependencies;
     }
 
+    return unmodifiedDependencies;
+  }
+
+  private void persistUnmodifiedDependencies(List<StartupDependencyFile> unmodifiedDependencies, String validatorKey) {
     // Loop through unmodified dependency files, persist them in storage, add them to in-memory cache
     // then delete them from the project directory - they do not need to be included in the thin archive
     // because they can be downloaded from storage when needed.
@@ -144,13 +165,22 @@ public class ArchiveUnthinner {
       } catch (Exception e) {
         throw new ProjectManagerException("Error while persisting dependency " + f.getDetails().getFile(), e);
       }
-      f.getFile().delete();
     }
-
-    return reports;
   }
 
-  private List<StartupDependencyFile> downloadDependencyFiles(File projectFolder, List<StartupDependencyDetails> toDownload) {
+  private boolean isExistingDependency(StartupDependencyDetails d, String validatorKey) {
+    try {
+      return this.dependencyStorage.dependencyExistsAndIsValidated(d, validatorKey);
+    } catch (SQLException e) {
+      throw new ProjectManagerException(
+          String.format("Unable to query DB to see if dependency exists in storage and is validated."
+                  + "Dependency Name: %s Dependency Hash: %s Validator Cache Key: %s",
+              d.getFile(), d.getSHA1(), validatorKey), e);
+    }
+  }
+
+  private List<StartupDependencyFile> downloadDependencyFiles(File projectFolder,
+      List<StartupDependencyDetails> toDownload) {
     final List<StartupDependencyFile> downloadedFiles = new ArrayList();
     for (StartupDependencyDetails d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
