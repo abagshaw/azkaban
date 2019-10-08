@@ -19,7 +19,6 @@ package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
 import azkaban.spi.StartupDependencyDetails;
-import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyStorage;
@@ -107,20 +106,21 @@ public class ArchiveUnthinnerTest {
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
-    when(this.validatorUtils.validateProject(this.project, this.projectFolder)).thenReturn(new HashMap<>());
+    when(this.validatorUtils.validateProject(this.project, this.projectFolder, null)).thenReturn(new HashMap<>());
 
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
-        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile);
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
 
     // Verify that ValidationReport is as expected (empty)
     assertEquals(result, new HashMap<>());
 
     // Verify that dependencies were persisted to storage
     verify(this.dependencyStorage, Mockito.times(1))
-        .persistDependency(eq(depA), VALIDATION_KEY, Mockito.any(File.class));
+        .persistDependency(Mockito.any(File.class), eq(depA), VALIDATION_KEY);
     verify(this.dependencyStorage, Mockito.times(1))
-        .persistDependency(eq(depB), VALIDATION_KEY, Mockito.any(File.class));
+        .persistDependency(Mockito.any(File.class), eq(depB), VALIDATION_KEY);
 
     // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);

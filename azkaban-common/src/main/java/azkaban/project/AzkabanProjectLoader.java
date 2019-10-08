@@ -109,14 +109,6 @@ class AzkabanProjectLoader {
     log.info("Uploading files to " + project.getName());
     final Map<String, ValidationReport> reports;
 
-    // Since props is an instance variable of ProjectManager, and each
-    // invocation to the uploadProject manager needs to pass a different
-    // value for the PROJECT_ARCHIVE_FILE_PATH key, it is necessary to
-    // create a new instance of Props to make sure these different values
-    // are isolated from each other.
-    final Props prop = new Props(this.props);
-    prop.putAll(additionalProps);
-
     File folder = null;
     final FlowLoader loader;
 
@@ -125,8 +117,9 @@ class AzkabanProjectLoader {
 
       File startupDependencies = getStartupDependenciesFile(folder);
       reports = startupDependencies.exists()
-          ? this.archiveUnthinner.validateProjectAndPersistDependencies(project, folder, startupDependencies)
-          : this.validatorUtils.validateProject(project, folder);
+          ? this.archiveUnthinner.validateProjectAndPersistDependencies(project, folder,
+            startupDependencies, additionalProps)
+          : this.validatorUtils.validateProject(project, folder, additionalProps);
 
       // If the project folder has been modified, update the project zip
       if (reports.values().stream().anyMatch(r -> !r.getModifiedFiles().isEmpty())) {

@@ -1,14 +1,16 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
+import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.StartupDependencyDetails;
-import azkaban.spi.Storage;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyStorage;
 import azkaban.utils.HashNotMatchException;
+import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +53,7 @@ public class ArchiveUnthinner {
   }
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File projectFolder, final File startupDependenciesFile)
+      final File projectFolder, final File startupDependenciesFile, final Props additionalProps)
       throws ProjectManagerException {
 
     List<StartupDependencyDetails> dependencies;
@@ -61,24 +63,37 @@ public class ArchiveUnthinner {
       throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
     }
 
+    String validatorKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
+
     // existingDependencies: dependencies that are already in storage and verified
     List<StartupDependencyDetails> existingDependencies = new ArrayList<>();
     // newDependencies: dependencies that are not in storage and need to be verified
     List<StartupDependencyDetails> newDependencies = new ArrayList<>();
 
     for (StartupDependencyDetails d : dependencies) {
-      if (!this.dependencyStorage.dependencyExistsAndIsValidated(d)) {
-        newDependencies.add(d);
-      } else {
-        existingDependencies.add(d);
+      try {
+        if (!this.dependencyStorage.dependencyExistsAndIsValidated(d, validatorKey)) {
+          newDependencies.add(d);
+        } else {
+          existingDependencies.add(d);
+        }
+      } catch (SQLException e) {
+        throw new ProjectManagerException(
+            String.format("Unable to query DB to see if dependency exists in storage and is validated."
+              + "Dependency Name: %s Dependency Hash: %s Validator Cache Key: %s",
+                d.getFile(), d.getSHA1(), validatorKey), e);
       }
     }
 
     // Download the new dependencies
     final List<StartupDependencyFile> downloadedDependencies = downloadDependencyFiles(projectFolder, newDependencies);
 
-    Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder);
-    if (reports.values().stream().anyMatch())
+    Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder, additionalProps);
+    if (reports.values().stream().anyMatch(r -> r.getStatus() == ValidationStatus.ERROR)) {
+      // No point continuing, this project has been rejected, so just return the validation report
+      // and don't waste any more time.
+      return reports;
+    }
 
     List<StartupDependencyFile> unmodifiedDependencies = new ArrayList<>();
 
@@ -125,9 +140,9 @@ public class ArchiveUnthinner {
     // because they can be downloaded from storage when needed.
     for (StartupDependencyFile f : unmodifiedDependencies) {
       try {
-        this.dependencyStorage.persistDependency(f);
+        this.dependencyStorage.persistDependency(f.getFile(), f.getDetails(), validatorKey);
       } catch (Exception e) {
-        throw new ProjectManagerException(e.getMessage(), e);
+        throw new ProjectManagerException("Error while persisting dependency " + f.getDetails().getFile(), e);
       }
       f.getFile().delete();
     }

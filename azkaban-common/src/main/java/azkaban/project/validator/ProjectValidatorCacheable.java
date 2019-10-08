@@ -4,27 +4,19 @@ import azkaban.project.Project;
 import azkaban.utils.Props;
 import java.io.File;
 
+
 /**
  * Interface to be implemented by plugins which are to be registered with Azkaban as project
  * validators that validate a project before uploaded into Azkaban.
  */
-public interface ProjectValidatorCacheable {
-
+public interface ProjectValidatorCacheable extends ProjectValidator {
   /**
-   * Initialize the validator using the given properties.
+   * Get a hash representing a context state for a project. Adding or removing JARs should
+   * not change this state. The state should only be based on text files. Two different projects
+   * for which the validator returns the same cacheKey should have IDENTICAL validation results
+   * for a given jar. I.e. if coollib-1.0.0.jar is included in Proj1 and is also in Proj2, so long
+   * as the validator returns the same cacheKey for both Proj1 and Proj2 it should also return the
+   * same validation result for the coollib-1.0.0.jar present in both projects.
    */
-  boolean initialize(Props configuration, Project project, File projectDir);
-
-  /**
-   * Return a user friendly name of the validator.
-   */
-  String getValidatorName();
-
-  String getCacheKey();
-
-  /**
-   * Validate the project inside the given directory. The validator, using its own validation logic,
-   * will generate a {@link ValidationReport} representing the result of the validation.
-   */
-  ValidationReport validateProject(Project project, File projectDir);
+  String getCacheKey(Project proj, File projectDir, Props additionalProps);
 }

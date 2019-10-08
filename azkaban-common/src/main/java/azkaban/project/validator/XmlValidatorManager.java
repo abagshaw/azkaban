@@ -1,6 +1,7 @@
 package azkaban.project.validator;
 
 import azkaban.project.Project;
+import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
 import java.io.File;
 import java.io.IOException;
@@ -51,21 +52,13 @@ public class XmlValidatorManager implements ValidatorManager {
   private Map<String, ProjectValidator> validators;
   private Map<String, ProjectValidatorCacheable> cacheableValidators;
 
-  private File projectDir;
-  private Project project;
-  private Map<String, ValidationReport> reports;
-
   /**
    * Load the validator plugins from the validator directory (default being validators/) into the
    * validator ClassLoader. This enables creating instances of these validators in the
    * loadValidators() method.
    */
   // Todo jamiesjc: guicify XmlValidatorManager class
-  public XmlValidatorManager(final Props props, final Project project, final File projectDir) {
-    this.project = project;
-    this.projectDir = projectDir;
-    this.reports = new HashMap<>();
-
+  public XmlValidatorManager(final Props props) {
     this.validatorDirPath = props
         .getString(ValidatorConfigs.VALIDATOR_PLUGIN_DIR, ValidatorConfigs.DEFAULT_VALIDATOR_DIR);
     final File validatorDir = new File(this.validatorDirPath);
@@ -212,21 +205,9 @@ public class XmlValidatorManager implements ValidatorManager {
       validator.initialize(props);
       this.validators.put(validator.getValidatorName(), validator);
       logger.info("Added validator " + className + " to list of validators.");
-    } catch (final Exception e1) {
-      // Attempt to instantiate new ProjectValidatorCacheable
-      try {
-        final Class<? extends ProjectValidatorCacheable> validatorClass =
-            (Class<? extends ProjectValidatorCacheable>) validatorLoader.loadClass(className);
-        final Constructor<?> validatorConstructor =
-            validatorClass.getConstructor(Logger.class);
-        final ProjectValidatorCacheable validator = (ProjectValidatorCacheable) validatorConstructor.newInstance(log);
-        validator.initialize(props, project, projectDir);
-        this.cacheableValidators.put(validator.getValidatorName(), validator);
-        logger.info("Added validator " + className + " to list of cacheable validators.");
-      } catch (Exception e2) {
-        logger.error("Could not instantiate ProjectValidator or ProjectValidatorCacheable " + className);
-        throw new ValidatorManagerException(e2);
-      }
+    } catch (final Exception e) {
+      logger.error("Could not instantiate ProjectValidator " + className);
+      throw new ValidatorManagerException(e);
     }
   }
 
@@ -242,16 +223,29 @@ public class XmlValidatorManager implements ValidatorManager {
   }
 
   @Override
-  public String getCacheKey() {
+  public String getCacheKey(Project project, File projectDir, Props props) {
+    if (props == null) {
+      props = new Props();
+    }
+
     StringBuilder compoundedKey = new StringBuilder();
     for (final Entry<String, ProjectValidatorCacheable> validator : this.cacheableValidators.entrySet()) {
-      compoundedKey.append(validator.getValue().getCacheKey());
+      try {
+        compoundedKey.append(((ProjectValidatorCacheable) validator.getValue()).getCacheKey(project,
+            projectDir, props));
+      } catch (ClassCastException e) {
+        // Swallow this error - the validator must not have been a cacheable validator
+      }
     }
-    return compoundedKey;
+    return HashUtils.bytesHashToString(HashUtils.SHA1.getHash(compoundedKey.toString()));
   }
 
   @Override
-  public Map<String, ValidationReport> validate(final Project project, final File projectDir) {
+  public Map<String, ValidationReport> validate(Project project, File projectDir, Props props) {
+    if (props == null) {
+      props = new Props();
+    }
+
     final Map<String, ValidationReport> reports = new LinkedHashMap<>();
     for (final Entry<String, ProjectValidator> validator : this.validators.entrySet()) {
       reports.put(validator.getKey(), validator.getValue().validateProject(project, projectDir));

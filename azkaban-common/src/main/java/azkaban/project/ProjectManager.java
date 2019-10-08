@@ -77,15 +77,6 @@ public class ProjectManager {
     this.creatorDefaultPermissions =
         props.getBoolean("creator.default.proxy", true);
 
-    // The prop passed to XmlValidatorManager is used to initialize all the
-    // validators
-    // Each validator will take certain key/value pairs from the prop to
-    // initialize itself.
-    final Props prop = new Props(props);
-    prop.put(ValidatorConfigs.PROJECT_ARCHIVE_FILE_PATH, "initialize");
-    // By instantiating an object of XmlValidatorManager, this will verify the
-    // config files for the validators.
-    new XmlValidatorManager(prop);
     loadAllProjects();
     logger.info("Loading whitelisted projects.");
     loadProjectWhiteList();

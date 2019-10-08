@@ -16,21 +16,23 @@ public class ValidatorUtils {
 
   private final ValidatorManager validatorManager;
 
-  final Props prop;
-
   @Inject
   public ValidatorUtils(final Props prop) {
-    this.prop = prop;
-    this.validatorManager = new XmlValidatorManager(this.prop);
+    logger.info("Creating XmlValidatorManager instance (loading validators)...");
+    this.validatorManager = new XmlValidatorManager(prop);
+    logger.info("XmlValidatorManager instance created.");
   }
 
-  public Map<String, ValidationReport> validateProject(final Project project, final File folder) {
-    // Reload XmlValidatorManager and create new object for each project verification because props
-    // must be unique between validations.
-    final ValidatorManager validatorManager = new XmlValidatorManager(this.prop);
+  public String getCacheKey(final Project project, final File folder,
+      final Props props) {
+    return this.validatorManager.getCacheKey(project, folder, props);
+  }
+
+  public Map<String, ValidationReport> validateProject(final Project project, final File folder,
+      final Props props) {
     logger.info("Validating project " + project.getName()
         + " using the registered validators "
-        + validatorManager.getValidatorsInfo().toString());
-    return validatorManager.validate(project, folder);
+        + this.validatorManager.getValidatorsInfo().toString());
+    return this.validatorManager.validate(project, folder, props);
   }
 }

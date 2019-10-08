@@ -59,7 +59,7 @@ public enum HashUtils {
     return digest;
   }
 
-  public byte[] getHash(final String str) throws IOException {
+  public byte[] getHash(final String str) {
     final MessageDigest digest = getDigest();
     digest.update(str.getBytes());
     return digest.digest();

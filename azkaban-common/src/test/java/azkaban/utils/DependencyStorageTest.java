@@ -45,7 +45,7 @@ public class DependencyStorageTest {
     when(this.storage.existsDependency(ThinArchiveTestSampleData.getDepA())).thenReturn(false);
 
     File someFile = TEMP_DIR.newFile("aaaa.jar");
-    this.dependencyStorage.persistDependency(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY, someFile);
+    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     verify(this.storage).putDependency(someFile, ThinArchiveTestSampleData.getDepA());
     verify(this.dbOperator).update(Mockito.anyString(), any());
@@ -57,7 +57,7 @@ public class DependencyStorageTest {
     when(this.storage.existsDependency(ThinArchiveTestSampleData.getDepA())).thenReturn(true);
 
     File someFile = TEMP_DIR.newFile("aaaa.jar");
-    this.dependencyStorage.persistDependency(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY, someFile);
+    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     // The dependency is already in storage, so we should not try to persist it to storage!
     verify(this.storage, Mockito.never()).putDependency(someFile, ThinArchiveTestSampleData.getDepA());
@@ -76,7 +76,7 @@ public class DependencyStorageTest {
     File someFile = TEMP_DIR.newFile("aaaa.jar");
     // The SQLException should be swallowed because even though we couldn't insert, we know that
     // the row already exists.
-    this.dependencyStorage.persistDependency(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY, someFile);
+    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     verify(this.dbOperator).update(Mockito.anyString(), any());
   }
@@ -92,6 +92,6 @@ public class DependencyStorageTest {
 
     File someFile = TEMP_DIR.newFile("aaaa.jar");
     // We should get an error thrown because of a failed SQL insert.
-    this.dependencyStorage.persistDependency(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY, someFile);
+    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
   }
 }
