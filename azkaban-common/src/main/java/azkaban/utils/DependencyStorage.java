@@ -67,8 +67,9 @@ public class DependencyStorage {
     this.dbOperator.batch("insert ignore into startup_dependencies values (?, ?)", rowsToInsert);
 
     // Ensure all dependencies exist. If any of them don't, roll back the appropriate entry in the database
-    // and throw an error. We don't immediately throw the error through, go through all the dependencies to
-    // make sure we roll back all dependencies that we've failed to persist before throwing the error.
+    // and set a flag to throw an error. We don't immediately throw the error through, go through all the
+    // dependencies to make sure we roll back all dependencies that we've failed to persist before throwing
+    // the error.
     boolean failedToPersist = false;
     for (StartupDependencyFile f : depFiles) {
       if (!this.storage.existsDependency(f.getDetails())) {

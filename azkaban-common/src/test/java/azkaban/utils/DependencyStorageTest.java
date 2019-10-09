@@ -62,12 +62,8 @@ public class DependencyStorageTest {
     // We will return only depB's hash, indicating only depB has been validated for this VALIDATION_KEY
     String[] results = new String[] {depB.getSHA1()};
     final AtomicInteger currResultIndex = new AtomicInteger();
-    doAnswer((Answer<Boolean>) invocation -> {
-      return currResultIndex.get() < results.length;
-    }).when(rs).next();
-    doAnswer((Answer<String>) invocation -> {
-      return results[currResultIndex.getAndIncrement()];
-    }).when(rs).getString(anyInt());
+    doAnswer((Answer<Boolean>) invocation -> currResultIndex.get() < results.length).when(rs).next();
+    doAnswer((Answer<String>) invocation -> results[currResultIndex.getAndIncrement()]).when(rs).getString(anyInt());
 
     // Assert that depB is the only dependency returned as validated
     assertEquals(new HashSet<>(Arrays.asList(ThinArchiveTestSampleData.getDepB())),
