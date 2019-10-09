@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import javax.inject.Inject;
+import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.ScalarHandler;
 
 
@@ -22,9 +23,16 @@ public class DependencyStorage {
 
   public boolean dependencyExistsAndIsValidated(final StartupDependencyDetails d, final String validationKey)
       throws SQLException {
+    final ResultSetHandler<Integer> handler = rs -> {
+      if (!rs.next()) {
+        return 0;
+      }
+      return rs.getInt(1);
+    };
+
     return this.dbOperator.query(
-        "select count(1) from startup_dependencies where sha1 = ? and validation_key = ?",
-        new ScalarHandler<>(), d.getSHA1(), validationKey);
+        "select count(1) from startup_dependencies where file_sha1 = ? and validation_key = ?",
+        handler, d.getSHA1(), validationKey) == 1;
   }
 
   public void persistDependency(final File file, final StartupDependencyDetails d, final String validationKey)

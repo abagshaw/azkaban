@@ -169,7 +169,7 @@ public class ArchiveUnthinner {
       return this.dependencyStorage.dependencyExistsAndIsValidated(d, validatorKey);
     } catch (SQLException e) {
       throw new ProjectManagerException(
-          String.format("Unable to query DB to see if dependency exists in storage and is validated."
+          String.format("Unable to query DB to see if dependency exists in storage and is validated. "
                   + "Dependency Name: %s Dependency Hash: %s Validator Cache Key: %s",
               d.getFile(), d.getSHA1(), validatorKey), e);
     }

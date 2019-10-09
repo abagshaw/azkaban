@@ -28,6 +28,7 @@ import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
+import azkaban.utils.HashNotMatchException;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -242,17 +243,17 @@ class FlowPreparer {
     final List<StartupDependencyDetails> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from storage
-    log.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
+    LOGGER.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
     for (StartupDependencyDetails d : dependencies) {
       downloadDependency(folder, d);
     }
-    log.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
+    LOGGER.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
   }
 
-  private void downloadDependency(final File folder, final StartupDependencyDetails dependencyInfo) throws IOException {
-    try (InputStream is = this.storage.getDependency(dependencyInfo.getFile(), dependencyInfo.getSHA1())) {
+  private void downloadDependency(final File folder, final StartupDependencyDetails dependencyDetails) throws IOException {
+    try (InputStream is = this.storage.getDependency(dependencyDetails)) {
       final File file = new File(folder,
-          dependencyInfo.getDestination() + File.separator + dependencyInfo.getFile());
+          dependencyDetails.getDestination() + File.separator + dependencyDetails.getFile());
       file.createNewFile();
 
       /* Copy from storage to output stream */
@@ -261,10 +262,13 @@ class FlowPreparer {
       }
 
       /* Validate hash */
-      validateDependencyHash(file, dependencyInfo);
+      validateDependencyHash(file, dependencyDetails);
     } catch (FileNotFoundException e) {
-      log.error("Could not find startup dependency {} Try re-uploading project.", dependencyInfo.getFile(), e);
+      LOGGER.error("Could not find startup dependency {} Try re-uploading project.", dependencyDetails.getFile(), e);
       throw e;
+    } catch (HashNotMatchException e) {
+      LOGGER.error("Hash validation failed when downloading startup dependency {}", dependencyDetails.getFile(), e);
+      throw new IOException(e);
     }
   }
 

@@ -36,8 +36,8 @@ public class DependencyStorageTest {
   @Test
   public void testDependencyExistsAndIsValidated() throws Exception {
     // This isn't a very good test, but to avoid making it brittle this is the best I think we can do
-    when(this.dbOperator.query(Mockito.anyString(), any(), any())).thenReturn(false);
-    assertEquals(false,
+    when(this.dbOperator.query(Mockito.anyString(), any(), any())).thenReturn(1);
+    assertEquals(true,
         this.dependencyStorage.dependencyExistsAndIsValidated(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY));
     verify(this.dbOperator).query(Mockito.anyString(), any(), any());
   }
