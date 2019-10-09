@@ -1,15 +1,24 @@
 package azkaban.utils;
 
+import azkaban.db.AzkabanDataSource;
 import azkaban.db.DatabaseOperator;
+import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
@@ -34,12 +43,35 @@ public class DependencyStorageTest {
   }
 
   @Test
-  public void testDependencyExistsAndIsValidated() throws Exception {
-    // This isn't a very good test, but to avoid making it brittle this is the best I think we can do
-    when(this.dbOperator.query(Mockito.anyString(), any(), any())).thenReturn(1);
-    assertEquals(true,
-        this.dependencyStorage.dependencyExistsAndIsValidated(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY));
-    verify(this.dbOperator).query(Mockito.anyString(), any(), any());
+  public void testGetValidatedDependencies() throws Exception {
+    // This test isn't very good and does NOT verify anything about the correctness of the SQL query
+    // in order to avoid brittleness.
+    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepA();
+
+    AzkabanDataSource dataSource = mock(AzkabanDataSource.class);
+    Connection connection = mock(Connection.class);
+    PreparedStatement statement = mock(PreparedStatement.class);
+    ResultSet rs = mock(ResultSet.class);
+
+    when(this.dbOperator.getDataSource()).thenReturn(dataSource);
+    when(dataSource.getConnection()).thenReturn(connection);
+    when(connection.prepareStatement(anyString())).thenReturn(statement);
+    when(statement.executeQuery()).thenReturn(rs);
+
+    // We will return only depB's hash, indicating only depB has been validated for this VALIDATION_KEY
+    String[] results = new String[] {depB.getSHA1()};
+    final AtomicInteger currResultIndex = new AtomicInteger();
+    doAnswer((Answer<Boolean>) invocation -> {
+      return currResultIndex.get() < results.length;
+    }).when(rs).next();
+    doAnswer((Answer<String>) invocation -> {
+      return results[currResultIndex.getAndIncrement()];
+    }).when(rs).getString(anyInt());
+
+    // Assert that depB is the only dependency returned as validated
+    assertEquals(new HashSet<>(Arrays.asList(ThinArchiveTestSampleData.getDepB())),
+        this.dependencyStorage.getValidatedDependencies(ThinArchiveTestSampleData.getDepSet(), VALIDATION_KEY));
   }
 
   @Test
@@ -51,7 +83,7 @@ public class DependencyStorageTest {
     this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     verify(this.storage).putDependency(someFile, ThinArchiveTestSampleData.getDepA());
-    verify(this.dbOperator).update(Mockito.anyString(), any());
+    verify(this.dbOperator).update(anyString(), any());
   }
 
   @Test

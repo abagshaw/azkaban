@@ -1,7 +1,6 @@
 package azkaban.utils;
 
 import azkaban.db.DatabaseOperator;
-import azkaban.project.ArchiveUnthinner;
 import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
@@ -13,7 +12,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,9 +56,7 @@ public class DependencyStorage {
   public void persistDependencies(final Set<StartupDependencyFile> depFiles, final String validationKey)
       throws SQLException, IOException {
     for (StartupDependencyFile f : depFiles) {
-      if (!this.storage.existsDependency(f.getDetails())) {
-        this.storage.putDependency(f);
-      }
+      persistDependency(f);
     }
 
     String[][] rowsToInsert = depFiles
@@ -71,7 +67,8 @@ public class DependencyStorage {
     this.dbOperator.batch("insert ignore into startup_dependencies values (?, ?)", rowsToInsert);
 
     // Ensure all dependencies exist. If any of them don't, roll back the appropriate entry in the database
-    // and throw an error.
+    // and throw an error. We don't immediately throw the error through, go through all the dependencies to
+    // make sure we roll back all dependencies that we've failed to persist before throwing the error.
     boolean failedToPersist = false;
     for (StartupDependencyFile f : depFiles) {
       if (!this.storage.existsDependency(f.getDetails())) {
@@ -90,7 +87,7 @@ public class DependencyStorage {
         this.storage.putDependency(f);
       } catch (Exception e) {
         log.error(String.format("Failed to persist dependency %s so deleting all "
-          + "validation entries with file hash %s", f.getDetails().getFile(), f.getDetails().getSHA1()));
+          + "validation entries with file sha1 %s", f.getDetails().getFile(), f.getDetails().getSHA1()));
         deleteRowsForDependency(f.getDetails());
         throw e;
       }
