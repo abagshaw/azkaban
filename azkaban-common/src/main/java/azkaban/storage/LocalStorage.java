@@ -114,7 +114,7 @@ public class LocalStorage implements Storage {
 
     // Copy file to storage dir
     try {
-      targetFile.mkdirs();
+      targetFile.getParentFile().mkdirs();
       FileUtils.copyFile(localFile, targetFile);
     } catch (final IOException e) {
       log.error("LocalStorage error in putDependency(): name: " + dep.getFile());

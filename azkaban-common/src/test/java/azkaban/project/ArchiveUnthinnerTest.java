@@ -18,6 +18,7 @@
 package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
+import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.StartupDependencyDetails;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.DependencyDownloader;
@@ -111,7 +112,7 @@ public class ArchiveUnthinnerTest {
   }
 
   @Test
-  public void testFreshUncachedValidProject() throws Exception {
+  public void testSimpleFreshProject() throws Exception {
     // Indicate that the dependencies are not validated, forcing them to be downloaded from artifactory
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
@@ -144,7 +145,7 @@ public class ArchiveUnthinnerTest {
   }
 
   @Test
-  public void testComplexPartialFreshValidProject() throws Exception {
+  public void testFileAlreadyInStorage() throws Exception {
     // Indicate that the depA is validated, but depB is not (forcing depB to be downloaded)
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(true);
     when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
@@ -221,5 +222,81 @@ public class ArchiveUnthinnerTest {
     // Verify that the startup-dependencies.json file now contains ONLY depB
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
     JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepB(), finalJSON, false);
+  }
+
+  @Test
+  public void testValidatorModifyFile() throws Exception {
+    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+
+    // When the unthinner attempts to validate the project, return a report indicating that the depA jar
+    // was modified.
+    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFile());
+    Set<File> modifiedFiles = new HashSet();
+    modifiedFiles.add(depAInProject);
+
+    doAnswer((Answer<Map>) invocation -> {
+      ValidationReport sampleReport = new ValidationReport();
+      sampleReport.addModifiedFiles(modifiedFiles);
+
+      Map<String, ValidationReport> allReports = new HashMap<>();
+      allReports.put("sample", sampleReport);
+
+      return allReports;
+    }).when(this.validatorUtils).validateProject(eq(this.project), eq(this.projectFolder), any());
+
+    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    Map<String, ValidationReport> result = this.archiveUnthinner
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
+
+    // Verify that ValidationReport indicates the correct removed and modified files.
+    assertEquals(modifiedFiles, result.get("sample").getModifiedFiles());
+    assertEquals(0, result.get("sample").getRemovedFiles().size());
+
+    // Verify that ONLY depB was persisted to storage, but NOT depA
+    verify(this.dependencyStorage, Mockito.never())
+        .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
+    verify(this.dependencyStorage, Mockito.times(1))
+        .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
+
+    // Verify that depA remains in the projectFolder (total of two jars)
+    assertEquals(2, new File(projectFolder, depA.getDestination()).listFiles().length);
+    assertTrue(depAInProject.exists());
+
+    // Verify that the startup-dependencies.json file now contains ONLY depB
+    String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepB(), finalJSON, false);
+  }
+
+  @Test
+  public void testReportWithError() throws Exception {
+    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+
+    // When the unthinner attempts to validate the project, return a report with ValidationStatus.ERROR
+    doAnswer((Answer<Map>) invocation -> {
+      String someErrorMsg = "Big problem!";
+      Set<String> errMsgs = new HashSet();
+      errMsgs.add(someErrorMsg);
+
+      ValidationReport sampleReport = new ValidationReport();
+      sampleReport.addErrorMsgs(errMsgs);
+
+      Map<String, ValidationReport> allReports = new HashMap<>();
+      allReports.put("sample", sampleReport);
+
+      return allReports;
+    }).when(this.validatorUtils).validateProject(eq(this.project), eq(this.projectFolder), any());
+
+    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    Map<String, ValidationReport> result = this.archiveUnthinner
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
+
+    // Verify that ValidationReport has an ERROR status.
+    assertEquals(ValidationStatus.ERROR, result.get("sample").getStatus());
   }
 }
