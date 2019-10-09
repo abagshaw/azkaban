@@ -33,12 +33,16 @@ public class HashUtilsTest {
 
   @Test
   public void MD5onString() throws Exception {
-    assertThat(HashUtils.MD5.getHash(SAMPLE_STR), is(SAMPLE_STR_MD5));
+    assertEquals(
+        HashUtils.bytesHashToString(HashUtils.MD5.getHash(SAMPLE_STR)).toUpperCase(),
+        SAMPLE_STR_MD5);
   }
 
   @Test
   public void SHA1onString() throws Exception {
-    assertThat(HashUtils.SHA1.getHash(SAMPLE_STR), is(SAMPLE_STR_SHA1));
+    assertEquals(
+        HashUtils.bytesHashToString(HashUtils.SHA1.getHash(SAMPLE_STR)).toUpperCase(),
+        SAMPLE_STR_SHA1);
   }
 
   @Test

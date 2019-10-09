@@ -12,6 +12,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
 
 public class DependencyStorageTest {
@@ -35,8 +36,10 @@ public class DependencyStorageTest {
   @Test
   public void testDependencyExistsAndIsValidated() throws Exception {
     // This isn't a very good test, but to avoid making it brittle this is the best I think we can do
-    this.dependencyStorage.dependencyExistsAndIsValidated(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
-    verify(this.dbOperator).query(Mockito.anyString(), any());
+    when(this.dbOperator.query(Mockito.anyString(), any(), any())).thenReturn(false);
+    assertEquals(false,
+        this.dependencyStorage.dependencyExistsAndIsValidated(ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY));
+    verify(this.dbOperator).query(Mockito.anyString(), any(), any());
   }
 
   @Test
@@ -71,7 +74,7 @@ public class DependencyStorageTest {
 
     // 1062 is the MySQL error code for error inserting due to duplicate primary key.
     SQLException duplicatePrimaryKey = new SQLException(null, null, 1062);
-    doThrow(duplicatePrimaryKey).when(this.dbOperator.update(Mockito.any()));
+    when(this.dbOperator.update(Mockito.any())).thenThrow(duplicatePrimaryKey);
 
     File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     // The SQLException should be swallowed because even though we couldn't insert, we know that
