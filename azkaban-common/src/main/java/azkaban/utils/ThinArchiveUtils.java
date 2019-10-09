@@ -48,7 +48,7 @@ public class ThinArchiveUtils {
         + dep.getFile();
   }
 
-  public static List<String> replaceLocalDependenciesWithStoragePaths(final File projectFolder,
+  public static List<String> replaceLocalPathsWithStoragePaths(final File projectFolder,
       final List<String> localDependencies, final Props systemProps) {
     File startupDependenciesFile = getStartupDependenciesFile(projectFolder);
     if (!startupDependenciesFile.exists()) {

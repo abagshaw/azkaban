@@ -18,8 +18,10 @@
 package azkaban.utils;
 
 import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
@@ -75,6 +77,107 @@ public class ThinArchiveUtilsTest {
   public void testConvertIvyCoordinateToPath() throws Exception {
     assertEquals(ThinArchiveTestSampleData.getDepAPath(),
         ThinArchiveUtils.convertIvyCoordinateToPath(ThinArchiveTestSampleData.getDepA()));
+  }
+
+  @Test
+  public void testReplaceLocalPathsWithStoragePathsTHIN() throws Exception {
+    // This is a test on a project from a THIN archive (and we expect the path for the one dependency listed
+    // in startup-dependencies.json, depA) to be replaced with the HDFS path, but the other jar should still have
+    // its normal local filepath
+
+    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    File projectDir = TEMP_DIR.newFolder("sample_proj");
+
+    String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
+
+    Props props = new Props();
+    props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
+
+    // Put depA in the correct location
+    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFile());
+    FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
+
+    // Put some other random jar in the same folder as depA
+    File otherRandomJar = new File(projectDir, depA.getDestination() + File.separator + "blahblah-1.0.0.jar");
+    FileUtils.writeStringToFile(otherRandomJar, "somerandomcontent");
+
+    // Write the startup-dependencies.json file
+    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(projectDir);
+    FileUtils.writeStringToFile(startupDependenciesFile, ThinArchiveTestSampleData.getRawJSONDepA());
+
+    List<String> jarPaths = new ArrayList<>();
+    jarPaths.add(depAFile.getCanonicalPath());
+    jarPaths.add(otherRandomJar.getCanonicalPath());
+
+    List<String> resultingJarPaths = ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPaths, props);
+
+
+    List<String> expectedResultingJarPaths = new ArrayList<>();
+    expectedResultingJarPaths.add(HDFS_DEP_PREFIX + ThinArchiveUtils.convertIvyCoordinateToPath(depA));
+    expectedResultingJarPaths.add(jarPaths.get(1));
+
+    assertEquals(expectedResultingJarPaths, resultingJarPaths);
+  }
+
+  @Test
+  public void testReplaceLocalPathsWithStoragePathsFAT() throws Exception {
+    // This is a test on a project from a FAT archive (essentially because there will be no startup-depencencies.json
+    // file in this project, we expect none of the paths to be replaced (the input paths should be returned without
+    // any modification)
+
+    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    File projectDir = TEMP_DIR.newFolder("sample_proj");
+
+    String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
+
+    Props props = new Props();
+    props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
+
+    // Put depA in the correct location
+    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFile());
+    FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
+
+    List<String> jarPaths = new ArrayList<>();
+    jarPaths.add(depAFile.getCanonicalPath());
+
+    List<String> expectedResultingJarPaths = new ArrayList<>();
+    expectedResultingJarPaths.add(jarPaths.get(0));
+
+    List<String> resultingJarPaths = ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPaths, props);
+
+    assertEquals(expectedResultingJarPaths, resultingJarPaths);
+  }
+
+  @Test
+  public void testReplaceLocalPathsWithStoragePathsMalformedTHIN() throws Exception {
+    // This is a test on a project from a THIN archive but with a malformed startup-dependencies.json file
+    // we expect the original local file paths to be returned, with no modifications and no exceptions thrown.
+
+    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    File projectDir = TEMP_DIR.newFolder("sample_proj");
+
+    String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
+
+    Props props = new Props();
+    props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
+
+    // Put depA in the correct location
+    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFile());
+    FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
+
+    // Write the startup-dependencies.json file
+    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(projectDir);
+    FileUtils.writeStringToFile(startupDependenciesFile, "MALFORMED JSON BLAHBLAH");
+
+    List<String> jarPaths = new ArrayList<>();
+    jarPaths.add(depAFile.getCanonicalPath());
+
+    List<String> expectedResultingJarPaths = new ArrayList<>();
+    expectedResultingJarPaths.add(jarPaths.get(0));
+
+    List<String> resultingJarPaths = ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPaths, props);
+
+    assertEquals(expectedResultingJarPaths, resultingJarPaths);
   }
 
   @Test
