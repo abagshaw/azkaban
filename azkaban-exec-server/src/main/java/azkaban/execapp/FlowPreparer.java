@@ -252,8 +252,8 @@ class FlowPreparer {
 
   private void downloadDependency(final File folder, final StartupDependencyDetails dependencyDetails) throws IOException {
     try (InputStream is = this.storage.getDependency(dependencyDetails)) {
-      final File file = new File(folder,
-          dependencyDetails.getDestination() + File.separator + dependencyDetails.getFile());
+      // Get file where this dependency should be downloaded to
+      final File file = getDependencyFile(folder, dependencyDetails);
       file.createNewFile();
 
       /* Copy from storage to output stream */

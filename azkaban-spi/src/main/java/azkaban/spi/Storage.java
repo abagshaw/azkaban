@@ -33,6 +33,7 @@ import java.io.InputStream;
  * Note: This is a synchronous interface.
  */
 public interface Storage {
+  public static final String DEPENDENCY_STORAGE_PATH_PREFIX_PROP = "dependency.storage.path.prefix";
 
   /**
    * Get an InputStream object for a project by providing a key.

@@ -27,6 +27,7 @@ import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.utils.FileIOUtils;
+import azkaban.utils.Props;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
@@ -46,9 +47,11 @@ public class LocalStorage implements Storage {
   final File dependencyDirectory;
 
   @Inject
-  public LocalStorage(final AzkabanCommonModuleConfig config) {
+  public LocalStorage(final AzkabanCommonModuleConfig config, final Props props) throws IOException {
     this.rootDirectory = validateDirectory(createIfDoesNotExist(config.getLocalStorageBaseDirPath()));
     this.dependencyDirectory = validateDirectory(createIfDoesNotExist(new File(this.rootDirectory, DEPENDENCY_FOLDER)));
+
+    props.put(DEPENDENCY_STORAGE_PATH_PREFIX_PROP, this.dependencyDirectory.getCanonicalPath());
   }
 
   private static File createIfDoesNotExist(final File baseDirectory) {

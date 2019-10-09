@@ -26,6 +26,7 @@ import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.utils.Props;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
@@ -52,7 +53,7 @@ public class HdfsStorage implements Storage {
 
   @Inject
   public HdfsStorage(final HdfsAuth hdfsAuth, final FileSystem hdfs,
-      final AzkabanCommonModuleConfig config) throws IOException {
+      final AzkabanCommonModuleConfig config, final Props props) throws IOException {
     this.hdfsAuth = requireNonNull(hdfsAuth);
     this.hdfs = requireNonNull(hdfs);
 
@@ -64,6 +65,8 @@ public class HdfsStorage implements Storage {
     if (this.hdfs.mkdirs(this.dependencyPath)) {
       log.info("Created dir for jar dependencies: " + this.dependencyPath);
     }
+
+    props.put(DEPENDENCY_STORAGE_PATH_PREFIX_PROP, this.dependencyPath.toUri().toString());
   }
 
   @Override
