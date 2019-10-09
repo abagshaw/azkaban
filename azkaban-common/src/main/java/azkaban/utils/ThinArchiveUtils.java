@@ -24,13 +24,13 @@ public class ThinArchiveUtils {
     return new File(projectFolder, d.getDestination() + File.separator + d.getFile());
   }
 
-  public static List<StartupDependencyDetails> parseStartupDependencies(final File f) throws IOException {
+  public static Set<StartupDependencyDetails> parseStartupDependencies(final File f) throws IOException {
     final String rawJson = FileUtils.readFileToString(f);
     return ((HashMap<String, List<Map<String, String>>>)
         JSONUtils.parseJSONFromString(rawJson))
         .get("dependencies")
         .stream().map(StartupDependencyDetails::new)
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
   }
 
   public static void writeStartupDependencies(final File f,
@@ -57,7 +57,7 @@ public class ThinArchiveUtils {
     }
 
     try {
-      List<StartupDependencyDetails> startupDeps = parseStartupDependencies(startupDependenciesFile);
+      Set<StartupDependencyDetails> startupDeps = parseStartupDependencies(startupDependenciesFile);
 
       Map<String, StartupDependencyDetails> pathToDep = new HashMap<>();
       for (StartupDependencyDetails dep : startupDeps) {

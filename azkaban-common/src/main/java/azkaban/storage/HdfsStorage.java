@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
@@ -103,33 +104,33 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public void putDependency(File localFile, StartupDependencyDetails dep) {
+  public void putDependency(final StartupDependencyFile f) {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
-      final Path targetPath = getDependencyPath(dep);
-      log.info(String.format("Uploading dependency to HDFS: %s -> %s", dep.getFile(), targetPath));
+      final Path targetPath = getDependencyPath(f.getDetails());
+      log.info(String.format("Uploading dependency to HDFS: %s -> %s", f.getDetails().getFile(), targetPath));
       this.hdfs.mkdirs(targetPath);
-      this.hdfs.copyFromLocalFile(new Path(localFile.getAbsolutePath()), targetPath);
+      this.hdfs.copyFromLocalFile(new Path(f.getFile().getAbsolutePath()), targetPath);
     } catch (final FileAlreadyExistsException e) {
       // Either the file already exists, or another web server process is uploading it
       // Either way, we can assume that the dependency will be present on HDFS and we don't
       // need to worry about persisting it.
-      log.info("Upload stopped. Dependency already exists in HDFS: " + dep.getFile());
+      log.info("Upload stopped. Dependency already exists in HDFS: " + f.getDetails().getFile());
     } catch (final IOException e) {
-      log.error("Error uploading dependency to HDFS: " + dep.getFile());
+      log.error("Error uploading dependency to HDFS: " + f.getDetails().getFile());
       throw new StorageException(e);
     }
   }
 
   @Override
-  public InputStream getDependency(StartupDependencyDetails dep) throws IOException {
+  public InputStream getDependency(final StartupDependencyDetails dep) throws IOException {
     this.hdfsAuth.authorize();
     return this.hdfs.open(getDependencyPath(dep));
   }
 
   @Override
-  public boolean existsDependency(StartupDependencyDetails dep) throws IOException {
+  public boolean existsDependency(final StartupDependencyDetails dep) throws IOException {
     this.hdfsAuth.authorize();
     return this.hdfs.exists(getDependencyPath(dep));
   }

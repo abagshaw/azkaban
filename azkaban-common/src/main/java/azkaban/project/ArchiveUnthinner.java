@@ -3,6 +3,7 @@ package azkaban.project;
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyFile;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyStorage;
 import azkaban.utils.HashNotMatchException;
@@ -12,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,19 +33,6 @@ public class ArchiveUnthinner {
 
   private final ValidatorUtils validatorUtils;
 
-  private static class StartupDependencyFile {
-    private final File file;
-    private final StartupDependencyDetails details;
-
-    public StartupDependencyFile(File f, StartupDependencyDetails sd) {
-      this.file = f;
-      this.details = sd;
-    }
-
-    public File getFile() { return file; }
-    public StartupDependencyDetails getDetails() { return details; }
-  }
-
   @Inject
   public ArchiveUnthinner(final ValidatorUtils validatorUtils, final DependencyStorage dependencyStorage,
       final DependencyDownloader dependencyDownloader) {
@@ -54,14 +43,16 @@ public class ArchiveUnthinner {
 
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
       final File projectFolder, final File startupDependenciesFile, final Props additionalProps) {
-    List<StartupDependencyDetails> dependencies = getDependenciesList(startupDependenciesFile);
+    Set<StartupDependencyDetails> dependencies = getDependenciesFromSpec(startupDependenciesFile);
 
     String validatorKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
 
     // existingDependencies: dependencies that are already in storage and verified
-    List<StartupDependencyDetails> existingDependencies = new ArrayList<>();
+    Set<StartupDependencyDetails> existingDependencies = getExistingDependencies(dependencies, validatorKey);
     // newDependencies: dependencies that are not in storage and need to be verified
-    List<StartupDependencyDetails> newDependencies = new ArrayList<>();
+    Set<StartupDependencyDetails> newDependencies = new HashSet<>();
+
+
     for (StartupDependencyDetails d : dependencies) {
       if (isExistingDependency(d, validatorKey)) {
         existingDependencies.add(d);
@@ -126,7 +117,7 @@ public class ArchiveUnthinner {
       throw new ProjectManagerException("Error while writing new startup-dependencies.json", e);
     }
   }
-  private List<StartupDependencyDetails> getDependenciesList(File startupDependenciesFile) {
+  private Set<StartupDependencyDetails> getDependenciesFromSpec(File startupDependenciesFile) {
     try {
       return parseStartupDependencies(startupDependenciesFile);
     } catch (IOException e) {
@@ -164,14 +155,13 @@ public class ArchiveUnthinner {
     }
   }
 
-  private boolean isExistingDependency(StartupDependencyDetails d, String validatorKey) {
+  private boolean getExistingDependencies(Set<StartupDependencyDetails> deps, String validatorKey) {
     try {
-      return this.dependencyStorage.dependencyExistsAndIsValidated(d, validatorKey);
+      return this.dependencyStorage.getValidationResults(deps, validatorKey);
     } catch (SQLException e) {
       throw new ProjectManagerException(
-          String.format("Unable to query DB to see if dependency exists in storage and is validated. "
-                  + "Dependency Name: %s Dependency Hash: %s Validator Cache Key: %s",
-              d.getFile(), d.getSHA1(), validatorKey), e);
+          String.format("Unable to query DB to see if dependencies exist and are validated "
+            + "for project with validatorKey %s", validatorKey);
     }
   }
 

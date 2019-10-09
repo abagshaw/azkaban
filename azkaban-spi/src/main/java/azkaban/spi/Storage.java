@@ -52,7 +52,7 @@ public interface Storage {
    */
   String putProject(ProjectStorageMetadata metadata, File localFile);
 
-  void putDependency(File localFile, StartupDependencyDetails s);
+  void putDependency(StartupDependencyFile f);
 
   InputStream getDependency(StartupDependencyDetails s) throws IOException;
 

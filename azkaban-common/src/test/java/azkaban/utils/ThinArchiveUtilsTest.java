@@ -23,6 +23,7 @@ import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,7 +70,7 @@ public class ThinArchiveUtilsTest {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
     FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSONBothDeps());
 
-    List<StartupDependencyDetails> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
+    Set<StartupDependencyDetails> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
     assertEquals(ThinArchiveTestSampleData.getDepList(), parsedDependencies);
   }
 

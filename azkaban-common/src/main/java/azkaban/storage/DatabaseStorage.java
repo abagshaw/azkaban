@@ -21,6 +21,7 @@ import azkaban.project.ProjectFileHandler;
 import azkaban.project.ProjectLoader;
 import azkaban.spi.AzkabanException;
 import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
 import azkaban.spi.ProjectStorageMetadata;
 import javax.inject.Singleton;
@@ -65,7 +66,7 @@ public class DatabaseStorage implements Storage {
   }
 
   @Override
-  public void putDependency(final File localFile, StartupDependencyDetails dep) throws AzkabanException {
+  public void putDependency(StartupDependencyFile f) throws AzkabanException {
     throw new UnsupportedOperationException(
         "Not implemented yet. Must use HdfsStorage or LocalStorage.");
   }

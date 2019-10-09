@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
@@ -112,15 +113,15 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public void putDependency(File localFile, StartupDependencyDetails dep) {
-    final File targetFile = getDependencyFile(dep);
+  public void putDependency(StartupDependencyFile f) {
+    final File targetFile = getDependencyFile(f.getDetails());
 
     // Copy file to storage dir
     try {
       targetFile.getParentFile().mkdirs();
-      FileUtils.copyFile(localFile, targetFile);
+      FileUtils.copyFile(f.getFile(), targetFile);
     } catch (final IOException e) {
-      log.error("LocalStorage error in putDependency(): name: " + dep.getFile());
+      log.error("LocalStorage error in putDependency(): name: " + f.getDetails().getFile());
       throw new StorageException(e);
     }
   }

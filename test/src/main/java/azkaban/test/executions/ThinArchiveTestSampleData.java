@@ -2,11 +2,12 @@ package azkaban.test.executions;
 
 import azkaban.spi.StartupDependencyDetails;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 
 public class ThinArchiveTestSampleData {
-  public static List getDepList() { return Arrays.asList(getDepA(), getDepB()); }
+  public static Set getDepSet() { return new HashSet(Arrays.asList(getDepA(), getDepB())); }
 
   public static String getRawJSONBothDeps() {
     return "{" +
