@@ -18,13 +18,14 @@
 package azkaban.storage;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.HashUtils;
+import azkaban.utils.Props;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -32,6 +33,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
+import net.bytebuddy.asm.Advice;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
@@ -47,23 +49,28 @@ public class LocalStorageTest {
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
   static final String SAMPLE_FILE = "sample_flow_01.zip";
-  static final String LOCAL_STORAGE = "LOCAL_STORAGE";
-  static final File BASE_DIRECTORY = new File(LOCAL_STORAGE);
+  static File BASE_DIRECTORY;
+
   private static final Logger log = Logger.getLogger(LocalStorageTest.class);
+
   private LocalStorage localStorage;
+  private Props props;
 
   @Before
   public void setUp() throws Exception {
-    tearDown();
-    BASE_DIRECTORY.mkdir();
+    BASE_DIRECTORY = TEMP_DIR.newFolder("TEST_LOCAL_STORAGE");
+
     final AzkabanCommonModuleConfig config = mock(AzkabanCommonModuleConfig.class);
-    when(config.getLocalStorageBaseDirPath()).thenReturn(LOCAL_STORAGE);
-    this.localStorage = new LocalStorage(config);
+    this.props = mock(Props.class);
+
+    when(config.getLocalStorageBaseDirPath()).thenReturn(BASE_DIRECTORY.getCanonicalPath());
+    this.localStorage = new LocalStorage(config, this.props);
   }
 
-  @After
-  public void tearDown() throws Exception {
-    FileUtils.deleteDirectory(BASE_DIRECTORY);
+  @Test
+  public void testDependencyBasePathProp() throws Exception {
+    String expectedBaseDependencyPath = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER).getCanonicalPath();
+    verify(this.props).put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, expectedBaseDependencyPath);
   }
 
   @Test

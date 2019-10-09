@@ -24,8 +24,10 @@ import static org.mockito.Mockito.when;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
+import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.HashUtils;
+import azkaban.utils.Props;
 import java.io.File;
 import java.net.URI;
 import org.apache.commons.codec.binary.Hex;
@@ -45,15 +47,23 @@ public class HdfsStorageTest {
   private HdfsAuth hdfsAuth;
   private HdfsStorage hdfsStorage;
   private FileSystem hdfs;
+  private Props props;
 
   @Before
   public void setUp() throws Exception {
     this.hdfs = mock(FileSystem.class);
     this.hdfsAuth = mock(HdfsAuth.class);
+    this.props = mock(Props.class);
     final AzkabanCommonModuleConfig config = mock(AzkabanCommonModuleConfig.class);
     when(config.getHdfsRootUri()).thenReturn(URI.create("hdfs://localhost:9000/path/to/foo"));
 
-    this.hdfsStorage = new HdfsStorage(this.hdfsAuth, this.hdfs, config);
+    this.hdfsStorage = new HdfsStorage(this.hdfsAuth, this.hdfs, config, this.props);
+  }
+
+  @Test
+  public void testDependencyBasePathProp() {
+    String expectedBaseDependencyPath = "hdfs://localhost:9000/path/to/foo/" + HdfsStorage.DEPENDENCY_FOLDER;
+    verify(this.props).put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, expectedBaseDependencyPath);
   }
 
   @Test

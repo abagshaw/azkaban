@@ -66,7 +66,7 @@ public class HdfsStorage implements Storage {
       log.info("Created dir for jar dependencies: " + this.dependencyPath);
     }
 
-    props.put(DEPENDENCY_STORAGE_PATH_PREFIX_PROP, this.dependencyPath.toUri().toString());
+    props.put(DEPENDENCY_STORAGE_PATH_PREFIX_PROP, this.rootUri.toASCIIString() + "/" + DEPENDENCY_FOLDER);
   }
 
   @Override

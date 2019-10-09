@@ -42,6 +42,18 @@ public class ThinArchiveUtilsTest {
   }
 
   @Test
+  public void testGetDependencyFile() throws Exception {
+    File someFolder = TEMP_DIR.newFolder("someproject");
+
+    File dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestSampleData.getDepA());
+    File expectedDependencyFile = new File(someFolder, ThinArchiveTestSampleData.getDepA().getDestination()
+        + File.separator
+        + ThinArchiveTestSampleData.getDepA().getFile());
+
+    assertEquals(expectedDependencyFile, dependencyFile);
+  }
+
+  @Test
   public void testWriteStartupDependencies() throws Exception {
     File outFile = TEMP_DIR.newFile("startup-dependencies.json");
     ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestSampleData.getDepList());
