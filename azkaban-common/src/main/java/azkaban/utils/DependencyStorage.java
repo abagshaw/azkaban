@@ -31,13 +31,16 @@ public class DependencyStorage {
     this.dbOperator = dbOperator;
   }
 
-  public Set<StartupDependencyDetails> getValidatedDependencies(final Set<StartupDependencyDetails> deps, final String validationKey)
-      throws SQLException {
+  public Set<StartupDependencyDetails> getValidatedDependencies(final Set<StartupDependencyDetails> deps,
+      final String validatorKey) throws SQLException {
     Map<String, StartupDependencyDetails> hashToDep = new HashMap<>();
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
         "select file_sha1 from startup_dependencies where validation_key = ? and file_sha1 in ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
-    int index = 1;
+
+    stmnt.setString(1, validatorKey);
+
+    int index = 2;
     for (StartupDependencyDetails d : deps) {
       stmnt.setString(index++, d.getSHA1());
       hashToDep.put(d.getSHA1(), d);
@@ -67,7 +70,7 @@ public class DependencyStorage {
 
     this.dbOperator.batch("insert ignore into startup_dependencies values (?, ?)", rowsToInsert);
 
-    // Ensure all dependencies exist. If any of them don't, roll back the appropirate entry in the database
+    // Ensure all dependencies exist. If any of them don't, roll back the appropriate entry in the database
     // and throw an error.
     boolean failedToPersist = false;
     for (StartupDependencyFile f : depFiles) {

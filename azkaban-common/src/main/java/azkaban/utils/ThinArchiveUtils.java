@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +25,7 @@ public class ThinArchiveUtils {
 
   public static Set<StartupDependencyDetails> parseStartupDependencies(final File f) throws IOException {
     final String rawJson = FileUtils.readFileToString(f);
-    return ((HashMap<String, List<Map<String, String>>>)
+    return ((HashMap<String, Set<Map<String, String>>>)
         JSONUtils.parseJSONFromString(rawJson))
         .get("dependencies")
         .stream().map(StartupDependencyDetails::new)
@@ -34,8 +33,8 @@ public class ThinArchiveUtils {
   }
 
   public static void writeStartupDependencies(final File f,
-      final List<StartupDependencyDetails> dependencies) throws IOException {
-    Map<String, List<StartupDependencyDetails>> outputFormat = new HashMap<>();
+      final Set<StartupDependencyDetails> dependencies) throws IOException {
+    Map<String, Set<StartupDependencyDetails>> outputFormat = new HashMap<>();
     outputFormat.put("dependencies", dependencies);
     FileUtils.writeStringToFile(f, JSONUtils.toJSON(outputFormat));
   }

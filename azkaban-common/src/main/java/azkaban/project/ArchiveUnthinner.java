@@ -9,6 +9,7 @@ import azkaban.utils.DependencyStorage;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
+import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -50,19 +51,10 @@ public class ArchiveUnthinner {
     // existingDependencies: dependencies that are already in storage and verified
     Set<StartupDependencyDetails> existingDependencies = getExistingDependencies(dependencies, validatorKey);
     // newDependencies: dependencies that are not in storage and need to be verified
-    Set<StartupDependencyDetails> newDependencies = new HashSet<>();
-
-
-    for (StartupDependencyDetails d : dependencies) {
-      if (isExistingDependency(d, validatorKey)) {
-        existingDependencies.add(d);
-      } else {
-        newDependencies.add(d);
-      }
-    }
+    Set<StartupDependencyDetails> newDependencies = Sets.difference(dependencies, existingDependencies);
 
     // Download the new dependencies
-    final List<StartupDependencyFile> downloadedDependencies = downloadDependencyFiles(projectFolder, newDependencies);
+    final Set<StartupDependencyFile> downloadedDependencies = downloadDependencyFiles(projectFolder, newDependencies);
 
     // Validate the project
     Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder, additionalProps);
@@ -72,11 +64,10 @@ public class ArchiveUnthinner {
       return reports;
     }
 
-    // Find which dependencies were unmodified
-    Set<File> modifiedFiles = getModifiedFiles(reports);
-    Set<File> removedFiles = getRemovedFiles(reports);
-    List<StartupDependencyFile> untouchedNewDependencies =
-        getUntouchedNewDependencies(downloadedDependencies, modifiedFiles, removedFiles);
+    // Find which dependencies were unmodified (touchedFiles is a subset of downloadedDependencies)
+    // so the difference between then will be the files that were untouched (neither modified nor removed).
+    Set<File> touchedFiles = Sets.union(getModifiedFiles(reports), getRemovedFiles(reports));
+    Set<StartupDependencyFile> untouchedNewDependencies = Sets.difference(downloadedDependencies, touchedFiles);
 
     // Persist the unmodified dependencies
     persistUntouchedNewDependencies(untouchedNewDependencies, validatorKey);
@@ -94,7 +85,7 @@ public class ArchiveUnthinner {
     return reports;
   }
 
-  private List<StartupDependencyFile> getUntouchedNewDependencies(List<StartupDependencyFile> downloadedDependencies,
+  private List<StartupDependencyFile> getUntouchedNewDependencies(Set<StartupDependencyFile> downloadedDependencies,
       Set<File> modifiedFiles, Set<File> removedFiles) {
     return downloadedDependencies
         .stream()
@@ -103,12 +94,10 @@ public class ArchiveUnthinner {
   }
 
   private void rewriteStartupDependencies(File startupDependenciesFile,
-      List<StartupDependencyFile> untouchedNewDependencies, List<StartupDependencyDetails> existingDependencies) {
+      Set<StartupDependencyFile> untouchedNewDependencyFiles, Set<StartupDependencyDetails> existingDependencies) {
     // Get the final list of startup dependencies that will be downloadable from storage
-    List<StartupDependencyDetails> finalDependencies = new ArrayList<>();
-    finalDependencies.addAll(existingDependencies);
-    finalDependencies.addAll(
-        untouchedNewDependencies.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toList()));
+    Set<StartupDependencyDetails> finalDependencies =
+        Sets.union(existingDependencies, mapDepFilesToDetails(untouchedNewDependencyFiles));
 
     // Write this list back to the startup-dependencies.json file
     try {
@@ -141,33 +130,29 @@ public class ArchiveUnthinner {
         .collect(Collectors.toSet());
   }
 
-  private void persistUntouchedNewDependencies(List<StartupDependencyFile> untouchedNewDependencies,
+  private void persistUntouchedNewDependencies(Set<StartupDependencyFile> untouchedNewDependencies,
       String validatorKey) {
-    // Loop through new untouched dependency files, persist them in storage, add them to in-memory cache
-    // then delete them from the project directory - they do not need to be included in the thin archive
-    // because they can be downloaded from storage when needed.
-    for (StartupDependencyFile f : untouchedNewDependencies) {
-      try {
-        this.dependencyStorage.persistDependency(f.getFile(), f.getDetails(), validatorKey);
-      } catch (Exception e) {
-        throw new ProjectManagerException("Error while persisting dependency " + f.getDetails().getFile(), e);
-      }
+    try {
+      this.dependencyStorage.persistDependencies(untouchedNewDependencies, validatorKey);
+    } catch (Exception e) {
+      throw new ProjectManagerException("Error while persisting dependencies.", e);
     }
   }
 
-  private boolean getExistingDependencies(Set<StartupDependencyDetails> deps, String validatorKey) {
+  private Set<StartupDependencyDetails> getExistingDependencies(Set<StartupDependencyDetails> deps,
+      String validatorKey) {
     try {
-      return this.dependencyStorage.getValidationResults(deps, validatorKey);
+      return this.dependencyStorage.getValidatedDependencies(deps, validatorKey);
     } catch (SQLException e) {
       throw new ProjectManagerException(
           String.format("Unable to query DB to see if dependencies exist and are validated "
-            + "for project with validatorKey %s", validatorKey);
+            + "for project with validatorKey %s", validatorKey));
     }
   }
 
-  private List<StartupDependencyFile> downloadDependencyFiles(File projectFolder,
-      List<StartupDependencyDetails> toDownload) {
-    final List<StartupDependencyFile> downloadedFiles = new ArrayList();
+  private Set<StartupDependencyFile> downloadDependencyFiles(File projectFolder,
+      Set<StartupDependencyDetails> toDownload) {
+    final Set<StartupDependencyFile> downloadedFiles = new HashSet();
     for (StartupDependencyDetails d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFile());
       try {
@@ -178,5 +163,9 @@ public class ArchiveUnthinner {
       downloadedFiles.add(new StartupDependencyFile(downloadedJar, d));
     }
     return downloadedFiles;
+  }
+
+  private Set<StartupDependencyDetails> mapDepFilesToDetails(Set<StartupDependencyFile> files) {
+    return files.stream().map(StartupDependencyFile::getDetails).collect(Collectors.toSet());
   }
 }
