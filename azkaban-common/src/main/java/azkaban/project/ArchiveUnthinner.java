@@ -7,6 +7,7 @@ import azkaban.spi.DependencyFile;
 import azkaban.spi.FileValidationStatus;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyManager;
+import azkaban.utils.FileIOUtils;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
@@ -19,6 +20,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.slf4j.Logger;
@@ -70,9 +73,9 @@ public class ArchiveUnthinner {
 
     // Find which dependencies were unmodified (touchedFiles is a subset of downloadedDeps)
     // so the difference between then will be the files that were untouched (neither modified nor removed).
-    Map<String, DependencyFile> pathToDownloadedDependencies = getPathMap(downloadedDeps);
-    Set<DependencyFile> removedFiles = getRemovedFiles(reports, pathToDownloadedDependencies);
-    Set<DependencyFile> modifiedFiles = getModifiedFiles(reports, pathToDownloadedDependencies);
+    Map<String, DependencyFile> pathToDownloadedDeps = getPathToDepFileMap(downloadedDeps);
+    Set<DependencyFile> removedFiles = getDepsFromReports(reports, pathToDownloadedDeps);
+    Set<DependencyFile> modifiedFiles = getModifiedFiles(reports, pathToDownloadedDeps);
     Set<DependencyFile> untouchedNewDependencies =
         Sets.difference(downloadedDeps, Sets.union(removedFiles, modifiedFiles));
 
@@ -91,6 +94,9 @@ public class ArchiveUnthinner {
     if (untouchedNewDependencies.size() < downloadedDeps.size()) {
       // There were some modified or deleted dependencies,
       // so we need to remove them from the startup-dependencies.json file.
+
+      // Get the final list of startup dependencies that will be downloadable from storage
+      Set<Dependency> finalDependencies = Sets.union(validDependencies, untouchedNewDependencies);
       rewriteStartupDependencies(startupDependenciesFile, untouchedNewDependencies, existingDependencies);
     }
 
@@ -108,12 +114,7 @@ public class ArchiveUnthinner {
         .collect(Collectors.toList());
   }
 
-  private void rewriteStartupDependencies(File startupDependenciesFile,
-      Set<DependencyFile> untouchedNewDependencyFiles, Set<Dependency> existingDependencies) {
-    // Get the final list of startup dependencies that will be downloadable from storage
-    Set<Dependency> finalDependencies =
-        Sets.union(existingDependencies, mapDepFilesToDetails(untouchedNewDependencyFiles));
-
+  private void rewriteStartupDependencies(File startupDependenciesFile, Set<Dependency> finalDependencies) {
     // Write this list back to the startup-dependencies.json file
     try {
       writeStartupDependencies(startupDependenciesFile, finalDependencies);
@@ -129,33 +130,20 @@ public class ArchiveUnthinner {
     }
   }
 
-  private Set<File> getModifiedFiles(Map<String, ValidationReport> reports) {
+  private Set<DependencyFile> getDepsFromReports(Map<String, ValidationReport> reports,
+      Map<String, DependencyFile> pathToDep, Function<ValidationReport, Set<File>> fn) {
     return reports.values()
         .stream()
-        .map(r -> r.getModifiedFiles())
+        .map(fn)
         .flatMap(set -> set.stream())
+        .map(f -> pathToDep.get(FileIOUtils.getCanonicalPath(f)))
         .collect(Collectors.toSet());
   }
 
-  private Set<File> getRemovedFiles(Map<String, ValidationReport> reports) {
-    return reports.values()
+  private Map<String, DependencyFile> getPathToDepFileMap(Set<DependencyFile> depFiles) {
+    return depFiles
         .stream()
-        .map(r -> r.getRemovedFiles())
-        .flatMap(set -> set.stream())
-        .collect(Collectors.toSet());
-  }
-
-  private Map<String, DependencyFile> getPathToDepFileMap(Map<String, ValidationReport> reports,
-      Set<DependencyFile> depFiles) {
-    for (DependencyFile d : depFiles) {
-      hashToDep.put(d.getSHA1(), d);
-    }
-
-    return reports.values()
-        .stream()
-        .map(r -> r.getRemovedFiles())
-        .flatMap(set -> set.stream())
-        .collect(Collectors.toSet());
+        .collect(Collectors.toMap(d -> FileIOUtils.getCanonicalPath(d.getFile()), e -> e));
   }
 
   private Set<DependencyFile> persistUntouchedNewDependencies(Set<DependencyFile> untouchedNewDependencies) {
