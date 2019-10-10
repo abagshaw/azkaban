@@ -119,7 +119,7 @@ public class ArchiveUnthinnerTest {
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
     sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
     sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
-    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
@@ -163,7 +163,7 @@ public class ArchiveUnthinnerTest {
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
     sampleValidationStatuses.put(depA, FileValidationStatus.VALID);
     sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
-    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
@@ -202,7 +202,7 @@ public class ArchiveUnthinnerTest {
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
     sampleValidationStatuses.put(depA, FileValidationStatus.REMOVED);
     sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
-    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
@@ -241,7 +241,7 @@ public class ArchiveUnthinnerTest {
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
     sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
     sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
-    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
@@ -295,7 +295,7 @@ public class ArchiveUnthinnerTest {
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
     sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
     sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
-    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
@@ -347,7 +347,7 @@ public class ArchiveUnthinnerTest {
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
     sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
     sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
-    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return a report with ValidationStatus.ERROR

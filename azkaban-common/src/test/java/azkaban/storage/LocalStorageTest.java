@@ -21,6 +21,8 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import azkaban.AzkabanCommonModuleConfig;
+import azkaban.spi.DependencyFile;
+import azkaban.spi.FileStatus;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestUtils;
@@ -116,10 +118,11 @@ public class LocalStorageTest {
 
   @Test
   public void testPutGetExistsDependency() throws Exception {
-    final File tmpJar = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFile());
+    final File tmpJar = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
     FileUtils.writeStringToFile(tmpJar, ThinArchiveTestUtils.getDepAContent());
+    DependencyFile depFile = new DependencyFile(tmpJar, ThinArchiveTestUtils.getDepA());
 
-    this.localStorage.putDependency(tmpJar, ThinArchiveTestUtils.getDepA());
+    assertEquals(FileStatus.CLOSED, this.localStorage.putDependency(depFile));
     final File expectedTargetFile = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER
         + File.separator + ThinArchiveTestUtils.getDepAPath());
 
@@ -133,6 +136,9 @@ public class LocalStorageTest {
 
     assertEquals(ThinArchiveTestUtils.getDepAContent(), fileContent);
 
-    assertTrue(this.localStorage.existsDependency(ThinArchiveTestUtils.getDepA()));
+    assertEquals(FileStatus.CLOSED, this.localStorage.dependencyStatus(ThinArchiveTestUtils.getDepA()));
+
+    // Test that we get FileStatus.NON_EXISTANT for a non-existant dep
+    assertEquals(FileStatus.NON_EXISTANT, this.localStorage.dependencyStatus(ThinArchiveTestUtils.getDepB()));
   }
 }
