@@ -53,11 +53,29 @@ public interface Storage {
    */
   String putProject(ProjectStorageMetadata metadata, File localFile);
 
-  void putDependency(DependencyFile f) throws FileAlreadyExistsException;
+  /**
+   * Put a dependency and return the resulting FileStatus
+   *
+   * @param file File and dependency details associated with dependency
+   * @return FileStatus resulting file status after writing (or attempting to write)
+   */
+  FileStatus putDependency(DependencyFile file) throws IOException;
 
-  InputStream getDependency(Dependency s) throws IOException;
+  /**
+   * Get an InputStream object for a dependency.
+   *
+   * @param dep the dependency to fetch
+   * @return InputStream for fetching the blob.
+   */
+  InputStream getDependency(Dependency dep) throws IOException;
 
-  FileStatus dependencyStatus(Dependency s) throws IOException;
+  /**
+   * Get the FileStatus of an dependency.
+   *
+   * @param dep the dependency for which to fetch the FileStatus for
+   * @return current FileStatus of the dependency
+   */
+  FileStatus dependencyStatus(Dependency dep) throws IOException;
 
   /**
    * Delete an object from Storage.

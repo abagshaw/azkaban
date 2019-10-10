@@ -67,7 +67,7 @@ public class DatabaseStorage implements Storage {
   }
 
   @Override
-  public void putDependency(DependencyFile f) throws AzkabanException {
+  public FileStatus putDependency(DependencyFile f) throws AzkabanException {
     throw new UnsupportedOperationException(
         "Not implemented yet. Must use HdfsStorage or LocalStorage.");
   }

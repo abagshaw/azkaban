@@ -1,18 +1,13 @@
-package azkaban.utils;
+package azkaban.project;
 
 import azkaban.db.DatabaseOperator;
-import azkaban.spi.FileStatus;
 import azkaban.spi.Dependency;
-import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
 import azkaban.spi.FileValidationStatus;
-import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
@@ -20,14 +15,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class DependencyManager {
-  private static final Logger log = LoggerFactory.getLogger(DependencyManager.class);
+public class JdbcDependencyManager {
+  private static final Logger log = LoggerFactory.getLogger(JdbcDependencyManager.class);
 
   private final DatabaseOperator dbOperator;
   private final Storage storage;
 
   @Inject
-  DependencyManager(final DatabaseOperator dbOperator, final Storage storage) {
+  JdbcDependencyManager(final DatabaseOperator dbOperator, final Storage storage) {
     this.storage = storage;
     this.dbOperator = dbOperator;
   }
@@ -78,46 +73,6 @@ public class DependencyManager {
     // error when we try to write the row), so this will ignore the error and continue persisting the other
     // dependencies.
     this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?, ?)", rowsToInsert);
-  }
-
-  public Set<DependencyFile> persistDependencies(final Set<DependencyFile> depFiles) throws IOException {
-    final Set<DependencyFile> persistedDeps = new HashSet<>();
-    for (DependencyFile f : depFiles) {
-      // If the file has a status of OPEN (it should never have a status of NON_EXISTANT) then we will not
-      // add an entry in the DB because it's possible that the other process that is currently writing the
-      // dependency fails and we want to ensure that the DB ONLY includes entries for verified dependencies
-      // when they are GUARANTEED to be persisted to storage.
-      FileStatus resultOfPersisting = persistDependency(f);
-      if (resultOfPersisting == FileStatus.CLOSED) {
-        // The dependency has a status of closed, so we are guaranteed that it persisted successfully to storage.
-        persistedDeps.add(f);
-      }
-    }
-
-    return persistedDeps;
-  }
-
-  private FileStatus persistDependency(final DependencyFile f) throws IOException {
-    FileStatus status = this.storage.dependencyStatus(f);
-    if (status == FileStatus.NON_EXISTANT) {
-      try {
-        this.storage.putDependency(f);
-        status = FileStatus.CLOSED;
-      } catch (FileAlreadyExistsException e) {
-        // Looks like another process beat us to the race. It started writing the file before we could.
-        // It's possible that the process completed writing the file, but it's also possible that the file is
-        // still being written to. We will assume the worst case (the file is still being written to) and
-        // return a status of OPEN so as not to persist this entry in the DB. Next time a project is uploaded
-        // that depends on this dependency, it will be identified as CLOSED on storage and then persisted in DB.
-        // So essentially, we're just deferring caching the results of validation for this dependency until next
-        // project upload.
-        status = FileStatus.OPEN;
-      } catch (IOException e) {
-        log.error("Error while attempting to persist dependency " + f.getFileName());
-        throw e;
-      }
-    }
-    return status;
   }
 
   private String makeStrWithQuestionMarks(final int num) {

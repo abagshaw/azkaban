@@ -17,12 +17,8 @@
 
 package azkaban.storage;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import azkaban.AzkabanCommonModuleConfig;
+import azkaban.spi.Dependency;
 import azkaban.spi.FileStatus;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.spi.DependencyFile;
@@ -30,6 +26,7 @@ import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
+import azkaban.utils.ThinArchiveUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URI;
@@ -45,6 +42,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 
 public class HdfsStorageTest {
@@ -57,6 +55,9 @@ public class HdfsStorageTest {
   private DistributedFileSystem dfs;
   private Props props;
 
+  private Dependency DEP_A;
+  private Path EXPECTED_PATH_DEP_A;
+
   @Before
   public void setUp() throws Exception {
     this.hdfs = mock(FileSystem.class);
@@ -67,6 +68,11 @@ public class HdfsStorageTest {
     when(config.getHdfsRootUri()).thenReturn(URI.create("hdfs://localhost:9000/path/to/foo"));
 
     this.hdfsStorage = new HdfsStorage(this.hdfsAuth, this.hdfs, this.dfs, config, this.props);
+
+    DEP_A = ThinArchiveTestSampleData.getDepA();
+    EXPECTED_PATH_DEP_A = new Path("/path/to/foo/" +
+        HdfsStorage.DEPENDENCY_FOLDER + "/"
+        + ThinArchiveTestSampleData.getDepAPath());
   }
 
   @Test
@@ -101,73 +107,88 @@ public class HdfsStorageTest {
 
   @Test
   public void testGetDependency() throws Exception {
-    this.hdfsStorage.getDependency(ThinArchiveTestSampleData.getDepA());
-    verify(this.hdfs).open(new Path("/path/to/foo/"
-            + HdfsStorage.DEPENDENCY_FOLDER + "/"
-            + ThinArchiveTestSampleData.getDepAPath()));
+    this.hdfsStorage.getDependency(DEP_A);
+    verify(this.hdfs).open(EXPECTED_PATH_DEP_A);
   }
 
   @Test
   public void testDependencyStatus_NON_EXISTANT() throws Exception {
-    Path expectedPath = new Path("/path/to/foo/"
-        + HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + ThinArchiveTestSampleData.getDepAPath());
-
-    when(this.dfs.isFileClosed(expectedPath)).thenThrow(new FileNotFoundException());
-
-    assertEquals(FileStatus.NON_EXISTANT,
-        this.hdfsStorage.dependencyStatus(ThinArchiveTestSampleData.getDepA()));
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenThrow(new FileNotFoundException());
+    assertEquals(FileStatus.NON_EXISTANT, this.hdfsStorage.dependencyStatus(DEP_A));
   }
 
   @Test
   public void testDependencyStatus_OPEN() throws Exception {
-    Path expectedPath = new Path("/path/to/foo/"
-        + HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + ThinArchiveTestSampleData.getDepAPath());
-
-    when(this.dfs.isFileClosed(expectedPath)).thenReturn(false);
-
-    assertEquals(FileStatus.OPEN,
-        this.hdfsStorage.dependencyStatus(ThinArchiveTestSampleData.getDepA()));
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(false);
+    assertEquals(FileStatus.OPEN, this.hdfsStorage.dependencyStatus(DEP_A));
   }
 
   @Test
   public void testDependencyStatus_CLOSED() throws Exception {
-    Path expectedPath = new Path("/path/to/foo/"
-        + HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + ThinArchiveTestSampleData.getDepAPath());
-
-    when(this.dfs.isFileClosed(expectedPath)).thenReturn(true);
-
-    assertEquals(FileStatus.CLOSED,
-        this.hdfsStorage.dependencyStatus(ThinArchiveTestSampleData.getDepA()));
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(true);
+    assertEquals(FileStatus.CLOSED, this.hdfsStorage.dependencyStatus(DEP_A));
   }
 
   @Test
-  public void testPutDependency() throws Exception {
-    final File tmpEmptyJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    DependencyFile depFile = new DependencyFile(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
-    this.hdfsStorage.putDependency(depFile);
+  public void testPutDependencyNotInStorage() throws Exception {
+    final File tmpEmptyJar = TEMP_DIR.newFile(DEP_A.getFileName());
 
-    final String expectedPath = "/path/to/foo/" +
-        HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + ThinArchiveTestSampleData.getDepAPath();
-    verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), new Path(expectedPath));
+    // Indicate that the file does not exist
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenThrow(new FileNotFoundException());
+
+    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    assertEquals(FileStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
+
+    verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
   }
 
-  @Test(expected = FileAlreadyExistsException.class)
+  @Test
   public void testPutDependencyAlreadyExists() throws Exception {
-    final File tmpEmptyJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    DependencyFile depFile = new DependencyFile(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
+    final File tmpEmptyJar = TEMP_DIR.newFile(DEP_A.getFileName());
 
-    final String expectedPath = "/path/to/foo/" +
-        HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + ThinArchiveTestSampleData.getDepAPath();
+    // Indicate that the file exists and is finalized (closed and not being written to)
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(true);
 
-    when(this.hdfs.copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), new Path(expectedPath)))
-        .thenThrow(new org.apache.hadoop.fs.FileAlreadyExistsException());
+    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    assertEquals(FileStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
-    this.hdfsStorage.putDependency(depFile);
+    // Because the dependency already exists, NO attempt should be made to persist it.
+    verify(this.hdfs, never()).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
+  }
+
+  @Test
+  public void testPutDependencyCurrentlyOpen() throws Exception {
+    final File tmpEmptyJar = TEMP_DIR.newFile(DEP_A.getFileName());
+
+    // Indicate that the file exists but is being currently written to
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(false);
+
+    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    assertEquals(FileStatus.OPEN, this.hdfsStorage.putDependency(depFile));
+
+    // Because the dependency already exists, NO attempt should be made to persist it.
+    verify(this.hdfs, never()).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
+  }
+
+  @Test
+  public void testPutDependencyRaceCondition() throws Exception {
+    final File tmpEmptyJar = TEMP_DIR.newFile(DEP_A.getFileName());
+
+    // Indicate that the file does not exist
+    when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenThrow(new FileNotFoundException());
+
+    // But uh oh....plot twist! When the method attempts to write the file, we throw an exception
+    // indicating it DOES actually exist. This could happen if another process began writing to the file
+    // AFTER we checked isFileClosed.
+    doThrow(new FileAlreadyExistsException("Uh oh :("))
+        .when(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
+
+    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+
+    // We expect putDependency to return a FileStatus of OPEN because, while it's POSSIBLE that the
+    // other process completed writing to the file and the file status is actually CLOSED, we'll play it safe
+    // and assume it is OPEN to ensure consuming methods know not to rely on the file being persisted to HDFS.
+    assertEquals(FileStatus.OPEN, this.hdfsStorage.putDependency(depFile));
   }
 
   @Test

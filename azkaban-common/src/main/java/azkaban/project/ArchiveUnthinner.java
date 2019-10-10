@@ -8,7 +8,6 @@ import azkaban.spi.FileStatus;
 import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
 import azkaban.utils.DependencyDownloader;
-import azkaban.utils.DependencyManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.Props;
@@ -33,17 +32,17 @@ import static azkaban.utils.ThinArchiveUtils.*;
 public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
-  private final DependencyManager dependencyManager;
+  private final JdbcDependencyManager jdbcDependencyManager;
   private final DependencyDownloader dependencyDownloader;
   private final Storage storage;
   private final ValidatorUtils validatorUtils;
 
   @Inject
-  public ArchiveUnthinner(final ValidatorUtils validatorUtils, final DependencyManager dependencyManager,
+  public ArchiveUnthinner(final ValidatorUtils validatorUtils, final JdbcDependencyManager jdbcDependencyManager,
       final DependencyDownloader dependencyDownloader, final Storage storage) {
     this.validatorUtils = validatorUtils;
     this.storage = storage;
-    this.dependencyManager = dependencyManager;
+    this.jdbcDependencyManager = jdbcDependencyManager;
     this.dependencyDownloader = dependencyDownloader;
   }
 
@@ -152,7 +151,7 @@ public class ArchiveUnthinner {
   private Map<Dependency, FileValidationStatus> getValidationStatuses(Set<Dependency> deps,
       String validationKey) {
     try {
-      return this.dependencyManager.getValidationStatuses(deps, validationKey);
+      return this.jdbcDependencyManager.getValidationStatuses(deps, validationKey);
     } catch (SQLException e) {
       throw new ProjectManagerException(
           String.format("Unable to query DB for validation statuses "
@@ -171,7 +170,7 @@ public class ArchiveUnthinner {
     guaranteedPersistedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
     removedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
     try {
-      this.dependencyManager.updateValidationStatuses(depValidationStatuses, validationKey);
+      this.jdbcDependencyManager.updateValidationStatuses(depValidationStatuses, validationKey);
     } catch (SQLException e) {
       throw new ProjectManagerException(
           String.format("Unable to update DB for validation statuses "

@@ -114,7 +114,7 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public void putDependency(DependencyFile f) {
+  public FileStatus putDependency(DependencyFile f) {
     final File targetFile = getDependencyFile(f);
 
     // Copy file to storage dir
@@ -125,6 +125,8 @@ public class LocalStorage implements Storage {
       log.error("LocalStorage error in putDependency(): name: " + f.getFileName());
       throw new StorageException(e);
     }
+
+    return FileStatus.CLOSED;
   }
 
   @Override

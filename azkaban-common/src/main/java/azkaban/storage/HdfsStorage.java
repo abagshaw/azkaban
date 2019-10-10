@@ -113,7 +113,7 @@ public class HdfsStorage implements Storage {
     FileStatus status = dependencyStatus(f);
     if (status == FileStatus.NON_EXISTANT) {
       try {
-        putDependency(f);
+        writeDependency(f);
         status = FileStatus.CLOSED;
       } catch (FileAlreadyExistsException e) {
         // Looks like another process beat us to the race. It started writing the file before we could.
@@ -124,9 +124,6 @@ public class HdfsStorage implements Storage {
         // So essentially, we're just deferring caching the results of validation for this dependency until next
         // project upload.
         status = FileStatus.OPEN;
-      } catch (IOException e) {
-        log.error("Error while attempting to persist dependency " + f.getFileName());
-        throw e;
       }
     }
     return status;
