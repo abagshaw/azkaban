@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import azkaban.AzkabanCommonModuleConfig;
+import azkaban.spi.FileStatus;
 import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
@@ -33,10 +34,11 @@ import javax.inject.Singleton;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.net.URI;
-import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.log4j.Logger;
 
 
@@ -49,6 +51,7 @@ public class HdfsStorage implements Storage {
   private final HdfsAuth hdfsAuth;
   private final URI rootUri;
   private final FileSystem hdfs;
+  private final DistributedFileSystem dfs;
 
   private final Path dependencyPath;
 
@@ -61,6 +64,9 @@ public class HdfsStorage implements Storage {
     this.rootUri = config.getHdfsRootUri();
     requireNonNull(this.rootUri.getAuthority(), "URI must have host:port mentioned.");
     checkArgument(HDFS_SCHEME.equals(this.rootUri.getScheme()));
+
+    dfs = new DistributedFileSystem();
+    dfs.initialize(this.hdfs.getUri(), this.hdfs.getConf());
 
     this.dependencyPath = new Path(this.rootUri.getPath(), DEPENDENCY_FOLDER);
     if (this.hdfs.mkdirs(this.dependencyPath)) {
@@ -104,7 +110,7 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public void putDependency(final StartupDependencyFile f) {
+  public void putDependency(final StartupDependencyFile f) throws FileAlreadyExistsException {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
@@ -112,11 +118,10 @@ public class HdfsStorage implements Storage {
       log.info(String.format("Uploading dependency to HDFS: %s -> %s", f.getDetails().getFile(), targetPath));
       this.hdfs.mkdirs(targetPath);
       this.hdfs.copyFromLocalFile(new Path(f.getFile().getAbsolutePath()), targetPath);
-    } catch (final FileAlreadyExistsException e) {
-      // Either the file already exists, or another web server process is uploading it
-      // Either way, we can assume that the dependency will be present on HDFS and we don't
-      // need to worry about persisting it.
+    } catch (final org.apache.hadoop.fs.FileAlreadyExistsException e) {
+      // Either the file already exists, OR another web server process is uploading it
       log.info("Upload stopped. Dependency already exists in HDFS: " + f.getDetails().getFile());
+      throw new FileAlreadyExistsException(e.getMessage());
     } catch (final IOException e) {
       log.error("Error uploading dependency to HDFS: " + f.getDetails().getFile());
       throw new StorageException(e);
@@ -130,9 +135,13 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public boolean existsDependency(final StartupDependencyDetails dep) throws IOException {
+  public FileStatus dependencyStatus(final StartupDependencyDetails dep) throws IOException {
     this.hdfsAuth.authorize();
-    return this.hdfs.exists(getDependencyPath(dep));
+    try {
+      return dfs.isFileClosed(getDependencyPath(dep)) ? FileStatus.CLOSED : FileStatus.OPEN;
+    } catch (final org.apache.hadoop.fs.FileAlreadyExistsException e) {
+      return FileStatus.NON_EXISTANT;
+    }
   }
 
   private Path getDependencyPath(StartupDependencyDetails dep) {

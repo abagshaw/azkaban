@@ -22,6 +22,7 @@ import static azkaban.utils.StorageUtils.*;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import azkaban.AzkabanCommonModuleConfig;
+import azkaban.spi.FileStatus;
 import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
@@ -133,8 +134,10 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public boolean existsDependency(StartupDependencyDetails dep) {
-    return getDependencyFile(dep).exists();
+  public FileStatus dependencyStatus(StartupDependencyDetails dep) {
+    // We assume that on a local file system we're only using this for dev so no need to check
+    // to see if the file is actually open. We'll assume that if it exists, it's closed.
+    return getDependencyFile(dep).exists() ? FileStatus.CLOSED : FileStatus.NON_EXISTANT;
   }
 
   private File getDependencyFile(StartupDependencyDetails dep) {

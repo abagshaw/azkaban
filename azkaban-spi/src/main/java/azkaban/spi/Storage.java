@@ -20,6 +20,7 @@ package azkaban.spi;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileAlreadyExistsException;
 
 
 /**
@@ -52,11 +53,11 @@ public interface Storage {
    */
   String putProject(ProjectStorageMetadata metadata, File localFile);
 
-  void putDependency(StartupDependencyFile f);
+  void putDependency(StartupDependencyFile f) throws FileAlreadyExistsException;
 
   InputStream getDependency(StartupDependencyDetails s) throws IOException;
 
-  boolean existsDependency(StartupDependencyDetails s) throws IOException;
+  FileStatus dependencyStatus(StartupDependencyDetails s) throws IOException;
 
   /**
    * Delete an object from Storage.

@@ -1,10 +1,12 @@
 package azkaban.utils;
 
 import azkaban.db.DatabaseOperator;
+import azkaban.spi.FileStatus;
 import azkaban.spi.StartupDependencyDetails;
 import azkaban.spi.StartupDependencyFile;
 import azkaban.spi.Storage;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -55,44 +57,44 @@ public class DependencyStorage {
 
   public void persistDependencies(final Set<StartupDependencyFile> depFiles, final String validationKey)
       throws SQLException, IOException {
+    final Set<StartupDependencyFile> persistedDeps = new HashSet<>();
     for (StartupDependencyFile f : depFiles) {
-      persistDependency(f);
+      // If the file has a status of OPEN (it should never have a status of NON_EXISTANT) then we will not
+      // add an entry in the DB because it's possible that the other process that is currently writing the
+      // dependency fails and we want to ensure that the DB ONLY includes entries for verified dependencies
+      // when they are GUARANTEED to be persisted to storage.
+      if (persistDependency(f) == FileStatus.CLOSED) {
+        // The dependency has a status of closed, so we are guaranteed that it persisted successfully to storage.
+        persistedDeps.add(f);
+      }
     }
 
-    String[][] rowsToInsert = depFiles
+    String[][] rowsToInsert = persistedDeps
         .stream()
         .map(f -> new String[]{f.getDetails().getSHA1(), validationKey})
         .toArray(String[][]::new);
 
     this.dbOperator.batch("insert ignore into startup_dependencies values (?, ?)", rowsToInsert);
-
-    // Ensure all dependencies exist. If any of them don't, roll back the appropriate entry in the database
-    // and set a flag to throw an error. We don't immediately throw the error through, go through all the
-    // dependencies to make sure we roll back all dependencies that we've failed to persist before throwing
-    // the error.
-    boolean failedToPersist = false;
-    for (StartupDependencyFile f : depFiles) {
-      if (!this.storage.existsDependency(f.getDetails())) {
-        failedToPersist = true;
-        deleteRowsForDependency(f.getDetails());
-      }
-    }
-    if (failedToPersist) {
-      throw new IOException("Some dependencies failed to persist. DB changes have been rolled back.");
-    }
   }
 
-  private void persistDependency(final StartupDependencyFile f) throws IOException, SQLException {
-    if (!this.storage.existsDependency(f.getDetails())) {
+  private FileStatus persistDependency(final StartupDependencyFile f) throws IOException {
+    FileStatus status = this.storage.dependencyStatus(f.getDetails());
+    if (status == FileStatus.NON_EXISTANT) {
       try {
         this.storage.putDependency(f);
-      } catch (Exception e) {
-        log.error(String.format("Failed to persist dependency %s so deleting all "
-          + "validation entries with file sha1 %s", f.getDetails().getFile(), f.getDetails().getSHA1()));
-        deleteRowsForDependency(f.getDetails());
+        status = FileStatus.CLOSED;
+      } catch (FileAlreadyExistsException e) {
+        // Looks like another process beat us to the race. It started writing the file before we could.
+        // It's possible that the file completed writing the file, but it's also possible that the file is
+        // still being written to. We will assume the worst case (the file is still being written to) and
+        // return a status of OPEN so as not to persist this entry in the DB.
+        status = FileStatus.OPEN;
+      } catch (IOException e) {
+        log.error("Error while attempting to persist dependency " + f.getDetails().getFile());
         throw e;
       }
     }
+    return status;
   }
 
   private void deleteRowsForDependency(final StartupDependencyDetails d) throws SQLException {
