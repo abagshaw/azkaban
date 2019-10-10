@@ -4,7 +4,9 @@ import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
+import azkaban.spi.FileStatus;
 import azkaban.spi.FileValidationStatus;
+import azkaban.spi.Storage;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.DependencyManager;
 import azkaban.utils.FileIOUtils;
@@ -33,13 +35,14 @@ public class ArchiveUnthinner {
 
   private final DependencyManager dependencyManager;
   private final DependencyDownloader dependencyDownloader;
-
+  private final Storage storage;
   private final ValidatorUtils validatorUtils;
 
   @Inject
   public ArchiveUnthinner(final ValidatorUtils validatorUtils, final DependencyManager dependencyManager,
-      final DependencyDownloader dependencyDownloader) {
+      final DependencyDownloader dependencyDownloader, final Storage storage) {
     this.validatorUtils = validatorUtils;
+    this.storage = storage;
     this.dependencyManager = dependencyManager;
     this.dependencyDownloader = dependencyDownloader;
   }
@@ -126,11 +129,24 @@ public class ArchiveUnthinner {
   }
 
   private Set<DependencyFile> persistUntouchedNewDependencies(Set<DependencyFile> untouchedNewDependencies) {
+    final Set<DependencyFile> guaranteedPersistedDeps = new HashSet<>();
     try {
-      return this.dependencyManager.persistDependencies(untouchedNewDependencies);
+      for (DependencyFile f : untouchedNewDependencies) {
+        // If the file has a status of OPEN (it should never have a status of NON_EXISTANT) then we will not
+        // add an entry in the DB because it's possible that the other process that is currently writing the
+        // dependency fails and we want to ensure that the DB ONLY includes entries for verified dependencies
+        // when they are GUARANTEED to be persisted to storage.
+        FileStatus resultOfPersisting = this.storage.putDependency(f);
+        if (resultOfPersisting == FileStatus.CLOSED) {
+          // The dependency has a status of closed, so we are guaranteed that it persisted successfully to storage.
+          guaranteedPersistedDeps.add(f);
+        }
+      }
     } catch (Exception e) {
       throw new ProjectManagerException("Error while persisting dependencies.", e);
     }
+
+    return guaranteedPersistedDeps;
   }
 
   private Map<Dependency, FileValidationStatus> getValidationStatuses(Set<Dependency> deps,

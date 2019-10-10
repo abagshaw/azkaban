@@ -30,7 +30,7 @@ import org.apache.commons.io.FileUtils;
 
 
 /**
- * Helper class that will find the hashes for files.
+ * Helper class that can find a hash for a file or string.
  */
 
 public enum HashUtils {

@@ -109,20 +109,43 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public void putDependency(final DependencyFile f) throws FileAlreadyExistsException {
+  public FileStatus putDependency(final DependencyFile f) throws IOException {
+    FileStatus status = dependencyStatus(f);
+    if (status == FileStatus.NON_EXISTANT) {
+      try {
+        putDependency(f);
+        status = FileStatus.CLOSED;
+      } catch (FileAlreadyExistsException e) {
+        // Looks like another process beat us to the race. It started writing the file before we could.
+        // It's possible that the process completed writing the file, but it's also possible that the file is
+        // still being written to. We will assume the worst case (the file is still being written to) and
+        // return a status of OPEN so as not to persist this entry in the DB. Next time a project is uploaded
+        // that depends on this dependency, it will be identified as CLOSED on storage and then persisted in DB.
+        // So essentially, we're just deferring caching the results of validation for this dependency until next
+        // project upload.
+        status = FileStatus.OPEN;
+      } catch (IOException e) {
+        log.error("Error while attempting to persist dependency " + f.getFileName());
+        throw e;
+      }
+    }
+    return status;
+  }
+
+  private void writeDependency(final DependencyFile f) throws FileAlreadyExistsException {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
-      final Path targetPath = getDependencyPath(f.getDetails());
-      log.info(String.format("Uploading dependency to HDFS: %s -> %s", f.getDetails().getFile(), targetPath));
+      final Path targetPath = getDependencyPath(f);
+      log.info(String.format("Uploading dependency to HDFS: %s -> %s", f.getFileName(), targetPath));
       this.hdfs.mkdirs(targetPath);
       this.hdfs.copyFromLocalFile(new Path(f.getFile().getAbsolutePath()), targetPath);
     } catch (final org.apache.hadoop.fs.FileAlreadyExistsException e) {
       // Either the file already exists, OR another web server process is uploading it
-      log.info("Upload stopped. Dependency already exists in HDFS: " + f.getDetails().getFile());
+      log.info("Upload stopped. Dependency already exists in HDFS: " + f.getFileName());
       throw new FileAlreadyExistsException(e.getMessage());
     } catch (final IOException e) {
-      log.error("Error uploading dependency to HDFS: " + f.getDetails().getFile());
+      log.error("Error uploading dependency to HDFS: " + f.getFileName());
       throw new StorageException(e);
     }
   }
