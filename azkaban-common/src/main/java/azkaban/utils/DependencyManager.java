@@ -5,7 +5,7 @@ import azkaban.spi.FileStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
-import azkaban.spi.ValidationStatus;
+import azkaban.spi.FileValidationStatus;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.sql.PreparedStatement;
@@ -32,7 +32,7 @@ public class DependencyManager {
     this.dbOperator = dbOperator;
   }
 
-  public Map<Dependency, ValidationStatus> getValidationStatuses(final Set<Dependency> deps,
+  public Map<Dependency, FileValidationStatus> getValidationStatuses(final Set<Dependency> deps,
       final String validatorKey) throws SQLException {
     Map<String, Dependency> hashToDep = new HashMap<>();
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
@@ -50,16 +50,21 @@ public class DependencyManager {
 
     ResultSet rs = stmnt.executeQuery();
 
-    Map<Dependency, ValidationStatus> depValidationStatuses = new HashMap<>();
+    Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
     while (rs.next()) {
-      Dependency d = hashToDep.get(rs.getString(1));
-      ValidationStatus v = ValidationStatus.valueOf(rs.getInt(2));
+      Dependency d = hashToDep.remove(rs.getString(1));
+      FileValidationStatus v = FileValidationStatus.valueOf(rs.getInt(2));
       depValidationStatuses.put(d, v);
     }
+
+    // All remaining dependencies in the hashToDep map should be marked as being NEW (because they weren't
+    // associated with any DB entry
+    hashToDep.values().stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.NEW));
+
     return depValidationStatuses;
   }
 
-  public void updateValidationStatuses(final Map<Dependency, ValidationStatus> depValidationStatuses,
+  public void updateValidationStatuses(final Map<Dependency, FileValidationStatus> depValidationStatuses,
       final String validatorKey) throws SQLException {
     // Order of columns: file_sha1, validation_key, validation_status
     Object[][] rowsToInsert = depValidationStatuses
