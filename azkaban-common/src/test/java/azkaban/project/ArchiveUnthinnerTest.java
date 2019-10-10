@@ -140,7 +140,14 @@ public class ArchiveUnthinnerTest {
     assertEquals(result, new HashMap<>());
 
     // Verify that both dependencies were persisted to storage
-    assertEquals(ThinArchiveTestUtils.getDepSetAB(), attemptedPersistedDeps);
+    verify(this.storage).putDependency(depEq(depA));
+    verify(this.storage).putDependency(depEq(depB));
+
+    // Verify that both dependencies were added to DB as VALID
+    Map<Dependency, FileValidationStatus> expectedStatuses = new HashMap();
+    expectedStatuses.put(depA, FileValidationStatus.VALID);
+    expectedStatuses.put(depB, FileValidationStatus.VALID);
+    verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
 
     // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
@@ -172,8 +179,14 @@ public class ArchiveUnthinnerTest {
     // Verify that ValidationReport is as expected (empty)
     assertEquals(result, new HashMap<>());
 
-    // Verify that ONLY depB was persisted to storage, but NOT depA
-    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
+    // Verify that ONLY depB was persisted to storage
+    verify(this.storage, never()).putDependency(depEq(depA));
+    verify(this.storage).putDependency(depEq(depB));
+
+    // Verify that ONLY depB was added to DB as VALID
+    Map<Dependency, FileValidationStatus> expectedStatuses = new HashMap();
+    expectedStatuses.put(depB, FileValidationStatus.VALID);
+    verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
@@ -205,9 +218,14 @@ public class ArchiveUnthinnerTest {
     // Verify that ValidationReport is as expected (empty)
     assertEquals(result, new HashMap<>());
 
-    // Verify that ONLY depB was persisted to storage, but NOT depA (depA wasn't even downloaded so that wouldn't
-    // even be possible...)
-    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
+    // Verify that ONLY depB was persisted to storage
+    verify(this.storage, never()).putDependency(depEq(depA));
+    verify(this.storage).putDependency(depEq(depB));
+
+    // Verify that ONLY depB was added to DB as VALID
+    Map<Dependency, FileValidationStatus> expectedStatuses = new HashMap();
+    expectedStatuses.put(depB, FileValidationStatus.VALID);
+    verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
@@ -253,8 +271,15 @@ public class ArchiveUnthinnerTest {
     assertEquals(removedFiles, result.get("sample").getRemovedFiles());
     assertEquals(0, result.get("sample").getModifiedFiles().size());
 
-    // Verify that ONLY depB was persisted to storage, but NOT depA
-    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
+    // Verify that ONLY depB was persisted to storage
+    verify(this.storage, never()).putDependency(depEq(depA));
+    verify(this.storage).putDependency(depEq(depB));
+
+    // Verify that depA was added to DB as REMOVED and depB was added as VALID
+    Map<Dependency, FileValidationStatus> expectedStatuses = new HashMap();
+    expectedStatuses.put(depA, FileValidationStatus.VALID);
+    expectedStatuses.put(depB, FileValidationStatus.VALID);
+    verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
@@ -298,8 +323,14 @@ public class ArchiveUnthinnerTest {
     assertEquals(modifiedFiles, result.get("sample").getModifiedFiles());
     assertEquals(0, result.get("sample").getRemovedFiles().size());
 
-    // Verify that ONLY depB was persisted to storage, but NOT depA
-    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
+    // Verify that ONLY depB was persisted to storage
+    verify(this.storage, never()).putDependency(depEq(depA));
+    verify(this.storage).putDependency(depEq(depB));
+
+    // Verify that ONLY depB was added to DB as VALID
+    Map<Dependency, FileValidationStatus> expectedStatuses = new HashMap();
+    expectedStatuses.put(depB, FileValidationStatus.VALID);
+    verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
 
     // Verify that depA remains in the projectFolder (total of two jars)
     assertEquals(2, new File(projectFolder, depA.getDestination()).listFiles().length);
@@ -342,6 +373,10 @@ public class ArchiveUnthinnerTest {
     // Verify that ValidationReport has an ERROR status.
     assertEquals(ValidationStatus.ERROR, result.get("sample").getStatus());
 
-    // Ass
+    // Verify that no dependencies were persisted
+    verify(this.storage, never()).putDependency(any());
+
+    // Verify that nothing was updated in DB
+    verify(this.jdbcDependencyManager, never()).updateValidationStatuses(any(), any());
   }
 }
