@@ -1,6 +1,6 @@
 package azkaban.utils;
 
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -20,12 +20,12 @@ public class DependencyDownloader {
     this.props = props;
   }
 
-  public void downloadDependency(final File destination, final StartupDependencyDetails d)
+  public void downloadDependency(final File destination, final Dependency d)
       throws HashNotMatchException, IOException {
     downloadDependency(destination, d, 0);
   }
 
-  private void downloadDependency(final File destination, final StartupDependencyDetails d, int tries)
+  private void downloadDependency(final File destination, final Dependency d, int tries)
       throws HashNotMatchException, IOException {
     try {
       tries++;
@@ -51,7 +51,7 @@ public class DependencyDownloader {
   }
 
 
-  private URL getUrlForDependency(StartupDependencyDetails d) throws MalformedURLException {
+  private URL getUrlForDependency(Dependency d) throws MalformedURLException {
     return new URL(
         new URL(this.props.getString(AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL)),
         convertIvyCoordinateToPath(d));

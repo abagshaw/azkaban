@@ -24,7 +24,7 @@ import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import azkaban.spi.Storage;
 import azkaban.storage.StorageManager;
 import azkaban.utils.FileIOUtils;
@@ -240,17 +240,17 @@ class FlowPreparer {
    * @throws IOException if downloading JARs or reading startup-dependencies.json fails
    */
   private void downloadAllDependencies(final File folder, final File startupDependencies) throws IOException {
-    final List<StartupDependencyDetails> dependencies = parseStartupDependencies(startupDependencies);
+    final List<Dependency> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from storage
     LOGGER.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
-    for (StartupDependencyDetails d : dependencies) {
+    for (Dependency d : dependencies) {
       downloadDependency(folder, d);
     }
     LOGGER.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
   }
 
-  private void downloadDependency(final File folder, final StartupDependencyDetails dependencyDetails) throws IOException {
+  private void downloadDependency(final File folder, final Dependency dependencyDetails) throws IOException {
     try (InputStream is = this.storage.getDependency(dependencyDetails)) {
       // Get file where this dependency should be downloaded to
       final File file = getDependencyFile(folder, dependencyDetails);

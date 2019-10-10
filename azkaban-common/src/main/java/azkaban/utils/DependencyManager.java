@@ -2,9 +2,10 @@ package azkaban.utils;
 
 import azkaban.db.DatabaseOperator;
 import azkaban.spi.FileStatus;
-import azkaban.spi.StartupDependencyDetails;
-import azkaban.spi.StartupDependencyFile;
+import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
+import azkaban.spi.ValidationStatus;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.sql.PreparedStatement;
@@ -19,68 +20,80 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class DependencyStorage {
-  private static final Logger log = LoggerFactory.getLogger(DependencyStorage.class);
+public class DependencyManager {
+  private static final Logger log = LoggerFactory.getLogger(DependencyManager.class);
 
   private final DatabaseOperator dbOperator;
   private final Storage storage;
 
   @Inject
-  DependencyStorage(final DatabaseOperator dbOperator, final Storage storage) {
+  DependencyManager(final DatabaseOperator dbOperator, final Storage storage) {
     this.storage = storage;
     this.dbOperator = dbOperator;
   }
 
-  public Set<StartupDependencyDetails> getValidatedDependencies(final Set<StartupDependencyDetails> deps,
+  public Map<Dependency, ValidationStatus> getValidationStatuses(final Set<Dependency> deps,
       final String validatorKey) throws SQLException {
-    Map<String, StartupDependencyDetails> hashToDep = new HashMap<>();
+    Map<String, Dependency> hashToDep = new HashMap<>();
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
-        "select file_sha1 from validated_dependencies where validation_key = ? and file_sha1 in ("
+        "select file_sha1, validation_status from validated_dependencies where validation_key = ? and file_sha1 in ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
 
     stmnt.setString(1, validatorKey);
 
+    // Start at 2 because the first parameter is at index 1, and that is the validator key that we already set.
     int index = 2;
-    for (StartupDependencyDetails d : deps) {
+    for (Dependency d : deps) {
       stmnt.setString(index++, d.getSHA1());
       hashToDep.put(d.getSHA1(), d);
     }
 
     ResultSet rs = stmnt.executeQuery();
 
-    Set<StartupDependencyDetails> validatedDependencies = new HashSet<>();
+    Map<Dependency, ValidationStatus> depValidationStatuses = new HashMap<>();
     while (rs.next()) {
-      validatedDependencies.add(hashToDep.get(rs.getString(1)));
+      Dependency d = hashToDep.get(rs.getString(1));
+      ValidationStatus v = ValidationStatus.valueOf(rs.getInt(2));
+      depValidationStatuses.put(d, v);
     }
-    return validatedDependencies;
+    return depValidationStatuses;
   }
 
-  public void persistDependencies(final Set<StartupDependencyFile> depFiles, final String validationKey)
-      throws SQLException, IOException {
-    final Set<StartupDependencyFile> persistedDeps = new HashSet<>();
-    for (StartupDependencyFile f : depFiles) {
+  public void updateValidationStatuses(final Map<Dependency, ValidationStatus> depValidationStatuses,
+      final String validatorKey) throws SQLException {
+    // Order of columns: file_sha1, validation_key, validation_status
+    Object[][] rowsToInsert = depValidationStatuses
+        .keySet()
+        .stream()
+        .map(d -> new Object[]{d.getSHA1(), validatorKey, depValidationStatuses.get(d).getValue()})
+        .toArray(Object[][]::new);
+
+    // We use insert IGNORE because a another process may have been processing the same dependency
+    // and written the row for a given dependency before we were able to (resulting in a duplicate primary key
+    // error when we try to write the row), so this will ignore the error and continue persisting the other
+    // dependencies.
+    this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?, ?)", rowsToInsert);
+  }
+
+  public Set<DependencyFile> persistDependencies(final Set<DependencyFile> depFiles) throws IOException {
+    final Set<DependencyFile> persistedDeps = new HashSet<>();
+    for (DependencyFile f : depFiles) {
       // If the file has a status of OPEN (it should never have a status of NON_EXISTANT) then we will not
       // add an entry in the DB because it's possible that the other process that is currently writing the
       // dependency fails and we want to ensure that the DB ONLY includes entries for verified dependencies
       // when they are GUARANTEED to be persisted to storage.
-      if (persistDependency(f) == FileStatus.CLOSED) {
+      FileStatus resultOfPersisting = persistDependency(f);
+      if (resultOfPersisting == FileStatus.CLOSED) {
         // The dependency has a status of closed, so we are guaranteed that it persisted successfully to storage.
         persistedDeps.add(f);
       }
     }
 
-    // Prepare to add entries in the validated_dependencies table for each dependency that we are 100% sure
-    // has been successfully persisted to storage.
-    String[][] rowsToInsert = persistedDeps
-        .stream()
-        .map(f -> new String[]{f.getDetails().getSHA1(), validationKey})
-        .toArray(String[][]::new);
-
-    this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?)", rowsToInsert);
+    return persistedDeps;
   }
 
-  private FileStatus persistDependency(final StartupDependencyFile f) throws IOException {
-    FileStatus status = this.storage.dependencyStatus(f.getDetails());
+  private FileStatus persistDependency(final DependencyFile f) throws IOException {
+    FileStatus status = this.storage.dependencyStatus(f);
     if (status == FileStatus.NON_EXISTANT) {
       try {
         this.storage.putDependency(f);
@@ -92,7 +105,7 @@ public class DependencyStorage {
         // return a status of OPEN so as not to persist this entry in the DB.
         status = FileStatus.OPEN;
       } catch (IOException e) {
-        log.error("Error while attempting to persist dependency " + f.getDetails().getFile());
+        log.error("Error while attempting to persist dependency " + f.getFileName());
         throw e;
       }
     }

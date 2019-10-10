@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.FileStatus;
 import azkaban.spi.ProjectStorageMetadata;
-import azkaban.spi.StartupDependencyFile;
+import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.HashUtils;
@@ -146,7 +146,7 @@ public class HdfsStorageTest {
   @Test
   public void testPutDependency() throws Exception {
     final File tmpEmptyJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    StartupDependencyFile depFile = new StartupDependencyFile(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
+    DependencyFile depFile = new DependencyFile(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
     this.hdfsStorage.putDependency(depFile);
 
     final String expectedPath = "/path/to/foo/" +
@@ -158,7 +158,7 @@ public class HdfsStorageTest {
   @Test(expected = FileAlreadyExistsException.class)
   public void testPutDependencyAlreadyExists() throws Exception {
     final File tmpEmptyJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    StartupDependencyFile depFile = new StartupDependencyFile(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
+    DependencyFile depFile = new DependencyFile(tmpEmptyJar, ThinArchiveTestSampleData.getDepA());
 
     final String expectedPath = "/path/to/foo/" +
         HdfsStorage.DEPENDENCY_FOLDER + "/"

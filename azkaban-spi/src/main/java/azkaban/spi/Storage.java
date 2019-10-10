@@ -53,11 +53,11 @@ public interface Storage {
    */
   String putProject(ProjectStorageMetadata metadata, File localFile);
 
-  void putDependency(StartupDependencyFile f) throws FileAlreadyExistsException;
+  void putDependency(DependencyFile f) throws FileAlreadyExistsException;
 
-  InputStream getDependency(StartupDependencyDetails s) throws IOException;
+  InputStream getDependency(Dependency s) throws IOException;
 
-  FileStatus dependencyStatus(StartupDependencyDetails s) throws IOException;
+  FileStatus dependencyStatus(Dependency s) throws IOException;
 
   /**
    * Delete an object from Storage.

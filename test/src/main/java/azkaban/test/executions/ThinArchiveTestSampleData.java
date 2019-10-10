@@ -1,6 +1,6 @@
 package azkaban.test.executions;
 
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -62,8 +62,8 @@ public class ThinArchiveTestSampleData {
   public static String getDepAPath() {
     return "com/linkedin/test/testeraaaa/1.0.1/aaaa.jar";
   }
-  public static StartupDependencyDetails getDepA() {
-    return new StartupDependencyDetails(
+  public static Dependency getDepA() {
+    return new Dependency(
       "aaaa.jar",
       "lib",
       "jar",
@@ -75,8 +75,8 @@ public class ThinArchiveTestSampleData {
   public static String getDepBPath() {
     return "com/linkedin/test/testerbbbb/1.0.1/bbbb.jar";
   }
-  public static StartupDependencyDetails getDepB() {
-    return new StartupDependencyDetails(
+  public static Dependency getDepB() {
+    return new Dependency(
       "bbbb.jar",
       "lib",
       "jar",

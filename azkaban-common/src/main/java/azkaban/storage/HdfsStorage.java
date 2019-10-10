@@ -23,8 +23,8 @@ import static java.util.Objects.requireNonNull;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.FileStatus;
-import azkaban.spi.StartupDependencyDetails;
-import azkaban.spi.StartupDependencyFile;
+import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
@@ -109,7 +109,7 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public void putDependency(final StartupDependencyFile f) throws FileAlreadyExistsException {
+  public void putDependency(final DependencyFile f) throws FileAlreadyExistsException {
     this.hdfsAuth.authorize();
     try {
       // Copy file to HDFS
@@ -128,13 +128,13 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public InputStream getDependency(final StartupDependencyDetails dep) throws IOException {
+  public InputStream getDependency(final Dependency dep) throws IOException {
     this.hdfsAuth.authorize();
     return this.hdfs.open(getDependencyPath(dep));
   }
 
   @Override
-  public FileStatus dependencyStatus(final StartupDependencyDetails dep) throws IOException {
+  public FileStatus dependencyStatus(final Dependency dep) throws IOException {
     this.hdfsAuth.authorize();
     try {
       return dfs.isFileClosed(getDependencyPath(dep)) ? FileStatus.CLOSED : FileStatus.OPEN;
@@ -143,7 +143,7 @@ public class HdfsStorage implements Storage {
     }
   }
 
-  private Path getDependencyPath(StartupDependencyDetails dep) {
+  private Path getDependencyPath(Dependency dep) {
     return new Path(this.dependencyPath, getTargetDependencyPath(dep));
   }
 

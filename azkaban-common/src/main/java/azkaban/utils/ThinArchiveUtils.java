@@ -1,6 +1,6 @@
 package azkaban.utils;
 
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import azkaban.spi.Storage;
 import java.io.File;
 import java.io.IOException;
@@ -19,27 +19,27 @@ public class ThinArchiveUtils {
     return new File(projectFolder.getPath() + "/app-meta/startup-dependencies.json");
   }
 
-  public static File getDependencyFile(final File projectFolder, final StartupDependencyDetails d) {
+  public static File getDependencyFile(final File projectFolder, final Dependency d) {
     return new File(projectFolder, d.getDestination() + File.separator + d.getFile());
   }
 
-  public static Set<StartupDependencyDetails> parseStartupDependencies(final File f) throws IOException {
+  public static Set<Dependency> parseStartupDependencies(final File f) throws IOException {
     final String rawJson = FileUtils.readFileToString(f);
     return ((HashMap<String, Set<Map<String, String>>>)
         JSONUtils.parseJSONFromString(rawJson))
         .get("dependencies")
-        .stream().map(StartupDependencyDetails::new)
+        .stream().map(Dependency::new)
         .collect(Collectors.toSet());
   }
 
   public static void writeStartupDependencies(final File f,
-      final Set<StartupDependencyDetails> dependencies) throws IOException {
-    Map<String, Set<StartupDependencyDetails>> outputFormat = new HashMap<>();
+      final Set<Dependency> dependencies) throws IOException {
+    Map<String, Set<Dependency>> outputFormat = new HashMap<>();
     outputFormat.put("dependencies", dependencies);
     FileUtils.writeStringToFile(f, JSONUtils.toJSON(outputFormat));
   }
 
-  public static String convertIvyCoordinateToPath(final StartupDependencyDetails dep) {
+  public static String convertIvyCoordinateToPath(final Dependency dep) {
     String[] coordinateParts = dep.getIvyCoordinates().split(":");
     return coordinateParts[0].replace(".", "/") + "/"
         + coordinateParts[1] + "/"
@@ -56,10 +56,10 @@ public class ThinArchiveUtils {
     }
 
     try {
-      Set<StartupDependencyDetails> startupDeps = parseStartupDependencies(startupDependenciesFile);
+      Set<Dependency> startupDeps = parseStartupDependencies(startupDependenciesFile);
 
-      Map<String, StartupDependencyDetails> pathToDep = new HashMap<>();
-      for (StartupDependencyDetails dep : startupDeps) {
+      Map<String, Dependency> pathToDep = new HashMap<>();
+      for (Dependency dep : startupDeps) {
         pathToDep.put(getDependencyFile(projectFolder, dep).getCanonicalPath(), dep);
       }
 
@@ -93,7 +93,7 @@ public class ThinArchiveUtils {
     }
   }
 
-  public static void validateDependencyHash(final File dependencyFile, final StartupDependencyDetails dependencyInfo)
+  public static void validateDependencyHash(final File dependencyFile, final Dependency dependencyInfo)
       throws HashNotMatchException {
     try {
       final byte[] actualFileHash = HashUtils.SHA1.getHash(dependencyFile);

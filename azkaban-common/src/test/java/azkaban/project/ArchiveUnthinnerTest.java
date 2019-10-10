@@ -19,10 +19,10 @@ package azkaban.project;
 
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import azkaban.utils.DependencyDownloader;
-import azkaban.utils.DependencyStorage;
+import azkaban.utils.DependencyManager;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
@@ -51,14 +51,14 @@ public class ArchiveUnthinnerTest {
   private final Project project = new Project(107, "Test_Project");
   private File projectFolder;
 
-  private StartupDependencyDetails depA;
-  private StartupDependencyDetails depB;
+  private Dependency depA;
+  private Dependency depB;
   private File depAInArtifactory;
   private File depBInArtifactory;
 
   private ArchiveUnthinner archiveUnthinner;
   private ValidatorUtils validatorUtils;
-  private DependencyStorage dependencyStorage;
+  private DependencyManager dependencyManager;
   private DependencyDownloader dependencyDownloader;
 
 
@@ -66,10 +66,10 @@ public class ArchiveUnthinnerTest {
   @Before
   public void setUp() throws Exception {
     this.validatorUtils = mock(ValidatorUtils.class);
-    this.dependencyStorage = mock(DependencyStorage.class);
+    this.dependencyManager = mock(DependencyManager.class);
     this.dependencyDownloader = mock(DependencyDownloader.class);
     this.archiveUnthinner = new ArchiveUnthinner(this.validatorUtils,
-        this.dependencyStorage, this.dependencyDownloader);
+        this.dependencyManager, this.dependencyDownloader);
 
     // Create test project directory
     // ../
@@ -95,7 +95,7 @@ public class ArchiveUnthinnerTest {
     // When downloadDependency() is called, write the content to the file as if it was downloaded
     doAnswer((Answer) invocation -> {
       File destFile = (File) invocation.getArguments()[0];
-      StartupDependencyDetails requestDependency = (StartupDependencyDetails) invocation.getArguments()[1];
+      Dependency requestDependency = (Dependency) invocation.getArguments()[1];
 
       String contentToWrite = requestDependency.equals(depA) ?
           ThinArchiveTestSampleData.getDepAContent() :
@@ -104,7 +104,7 @@ public class ArchiveUnthinnerTest {
       FileUtils.writeStringToFile(destFile, contentToWrite);
       return null;
     }).when(this.dependencyDownloader)
-        .downloadDependency(any(File.class), any(StartupDependencyDetails.class));
+        .downloadDependency(any(File.class), any(Dependency.class));
 
     // When the unthinner attempts to get a validatorKey for the project, return our sample one.
     when(this.validatorUtils.getCacheKey(eq(this.project), eq(this.projectFolder), any()))
@@ -114,8 +114,8 @@ public class ArchiveUnthinnerTest {
   @Test
   public void testSimpleFreshProject() throws Exception {
     // Indicate that the dependencies are not validated, forcing them to be downloaded from artifactory
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
@@ -131,9 +131,9 @@ public class ArchiveUnthinnerTest {
     assertEquals(result, new HashMap<>());
 
     // Verify that dependencies were persisted to storage
-    verify(this.dependencyStorage, Mockito.times(1))
+    verify(this.dependencyManager, Mockito.times(1))
         .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
-    verify(this.dependencyStorage, Mockito.times(1))
+    verify(this.dependencyManager, Mockito.times(1))
         .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
 
     // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
@@ -147,8 +147,8 @@ public class ArchiveUnthinnerTest {
   @Test
   public void testFileAlreadyInStorage() throws Exception {
     // Indicate that the depA is validated, but depB is not (forcing depB to be downloaded)
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(true);
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(true);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
@@ -164,9 +164,9 @@ public class ArchiveUnthinnerTest {
     assertEquals(result, new HashMap<>());
 
     // Verify that ONLY depB was persisted to storage, but NOT depA
-    verify(this.dependencyStorage, Mockito.never())
+    verify(this.dependencyManager, Mockito.never())
         .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
-    verify(this.dependencyStorage, Mockito.times(1))
+    verify(this.dependencyManager, Mockito.times(1))
         .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
@@ -180,8 +180,8 @@ public class ArchiveUnthinnerTest {
   @Test
   public void testValidatorDeleteFile() throws Exception {
     // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
     // was removed.
@@ -211,9 +211,9 @@ public class ArchiveUnthinnerTest {
     assertEquals(0, result.get("sample").getModifiedFiles().size());
 
     // Verify that ONLY depB was persisted to storage, but NOT depA
-    verify(this.dependencyStorage, Mockito.never())
+    verify(this.dependencyManager, Mockito.never())
         .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
-    verify(this.dependencyStorage, Mockito.times(1))
+    verify(this.dependencyManager, Mockito.times(1))
         .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
@@ -227,8 +227,8 @@ public class ArchiveUnthinnerTest {
   @Test
   public void testValidatorModifyFile() throws Exception {
     // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
     // was modified.
@@ -256,9 +256,9 @@ public class ArchiveUnthinnerTest {
     assertEquals(0, result.get("sample").getRemovedFiles().size());
 
     // Verify that ONLY depB was persisted to storage, but NOT depA
-    verify(this.dependencyStorage, Mockito.never())
+    verify(this.dependencyManager, Mockito.never())
         .persistDependency(any(File.class), eq(depA), eq(VALIDATOR_KEY));
-    verify(this.dependencyStorage, Mockito.times(1))
+    verify(this.dependencyManager, Mockito.times(1))
         .persistDependency(any(File.class), eq(depB), eq(VALIDATOR_KEY));
 
     // Verify that depA remains in the projectFolder (total of two jars)
@@ -273,8 +273,8 @@ public class ArchiveUnthinnerTest {
   @Test
   public void testReportWithError() throws Exception {
     // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
-    when(this.dependencyStorage.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depA, VALIDATOR_KEY)).thenReturn(false);
+    when(this.dependencyManager.dependencyExistsAndIsValidated(depB, VALIDATOR_KEY)).thenReturn(false);
 
     // When the unthinner attempts to validate the project, return a report with ValidationStatus.ERROR
     doAnswer((Answer<Map>) invocation -> {

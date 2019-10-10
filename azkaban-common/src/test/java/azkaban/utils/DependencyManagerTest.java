@@ -2,7 +2,7 @@ package azkaban.utils;
 
 import azkaban.db.AzkabanDataSource;
 import azkaban.db.DatabaseOperator;
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
@@ -21,10 +21,9 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
 
 
-public class DependencyStorageTest {
+public class DependencyManagerTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
@@ -32,22 +31,22 @@ public class DependencyStorageTest {
 
   public DatabaseOperator dbOperator;
   public Storage storage;
-  public DependencyStorage dependencyStorage;
+  public DependencyManager dependencyManager;
 
   @Before
   public void setup() throws Exception {
     this.dbOperator = mock(DatabaseOperator.class);
     this.storage = mock(Storage.class);
 
-    this.dependencyStorage = new DependencyStorage(this.dbOperator, this.storage);
+    this.dependencyManager = new DependencyManager(this.dbOperator, this.storage);
   }
 
   @Test
   public void testGetValidatedDependencies() throws Exception {
     // This test isn't very good and does NOT verify anything about the correctness of the SQL query
     // in order to avoid brittleness.
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
-    StartupDependencyDetails depB = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depB = ThinArchiveTestSampleData.getDepA();
 
     AzkabanDataSource dataSource = mock(AzkabanDataSource.class);
     Connection connection = mock(Connection.class);
@@ -67,7 +66,7 @@ public class DependencyStorageTest {
 
     // Assert that depB is the only dependency returned as validated
     assertEquals(new HashSet<>(Arrays.asList(ThinArchiveTestSampleData.getDepB())),
-        this.dependencyStorage.getValidatedDependencies(ThinArchiveTestSampleData.getDepSet(), VALIDATION_KEY));
+        this.dependencyManager.getValidatedDependencies(ThinArchiveTestSampleData.getDepSet(), VALIDATION_KEY));
   }
 
   @Test
@@ -76,7 +75,7 @@ public class DependencyStorageTest {
     when(this.storage.existsDependency(ThinArchiveTestSampleData.getDepA())).thenReturn(false);
 
     File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
+    this.dependencyManager.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     verify(this.storage).putDependency(someFile, ThinArchiveTestSampleData.getDepA());
     verify(this.dbOperator).update(anyString(), any());
@@ -88,7 +87,7 @@ public class DependencyStorageTest {
     when(this.storage.existsDependency(ThinArchiveTestSampleData.getDepA())).thenReturn(true);
 
     File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
+    this.dependencyManager.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     // The dependency is already in storage, so we should not try to persist it to storage!
     verify(this.storage, Mockito.never()).putDependency(someFile, ThinArchiveTestSampleData.getDepA());
@@ -107,7 +106,7 @@ public class DependencyStorageTest {
     File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     // The SQLException should be swallowed because even though we couldn't insert, we know that
     // the row already exists.
-    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
+    this.dependencyManager.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
 
     verify(this.dbOperator).update(Mockito.anyString(), any());
   }
@@ -123,6 +122,6 @@ public class DependencyStorageTest {
 
     File someFile = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
     // We should get an error thrown because of a failed SQL insert.
-    this.dependencyStorage.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
+    this.dependencyManager.persistDependency(someFile, ThinArchiveTestSampleData.getDepA(), VALIDATION_KEY);
   }
 }

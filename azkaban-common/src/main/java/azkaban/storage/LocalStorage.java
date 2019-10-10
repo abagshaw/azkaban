@@ -23,8 +23,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.FileStatus;
-import azkaban.spi.StartupDependencyDetails;
-import azkaban.spi.StartupDependencyFile;
+import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
@@ -114,7 +114,7 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public void putDependency(StartupDependencyFile f) {
+  public void putDependency(DependencyFile f) {
     final File targetFile = getDependencyFile(f.getDetails());
 
     // Copy file to storage dir
@@ -128,19 +128,19 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public InputStream getDependency(StartupDependencyDetails dep) throws IOException {
+  public InputStream getDependency(Dependency dep) throws IOException {
     final File targetFile = getDependencyFile(dep);
     return new FileInputStream(targetFile);
   }
 
   @Override
-  public FileStatus dependencyStatus(StartupDependencyDetails dep) {
+  public FileStatus dependencyStatus(Dependency dep) {
     // We assume that on a local file system we're only using this for dev so no need to check
     // to see if the file is actually open. We'll assume that if it exists, it's closed.
     return getDependencyFile(dep).exists() ? FileStatus.CLOSED : FileStatus.NON_EXISTANT;
   }
 
-  private File getDependencyFile(StartupDependencyDetails dep) {
+  private File getDependencyFile(Dependency dep) {
     return new File(this.dependencyDirectory, getTargetDependencyPath(dep));
   }
 

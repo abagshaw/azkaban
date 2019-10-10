@@ -17,7 +17,7 @@
 
 package azkaban.utils;
 
-import azkaban.spi.StartupDependencyDetails;
+import azkaban.spi.Dependency;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestSampleData;
 import java.io.File;
@@ -70,7 +70,7 @@ public class ThinArchiveUtilsTest {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
     FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSONBothDeps());
 
-    Set<StartupDependencyDetails> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
+    Set<Dependency> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
     assertEquals(ThinArchiveTestSampleData.getDepList(), parsedDependencies);
   }
 
@@ -86,7 +86,7 @@ public class ThinArchiveUtilsTest {
     // in startup-dependencies.json, depA) to be replaced with the HDFS path, but the other jar should still have
     // its normal local filepath
 
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestSampleData.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
     String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
@@ -126,7 +126,7 @@ public class ThinArchiveUtilsTest {
     // file in this project, we expect none of the paths to be replaced (the input paths should be returned without
     // any modification)
 
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestSampleData.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
     String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
@@ -154,7 +154,7 @@ public class ThinArchiveUtilsTest {
     // This is a test on a project from a THIN archive but with a malformed startup-dependencies.json file
     // we expect the original local file paths to be returned, with no modifications and no exceptions thrown.
 
-    StartupDependencyDetails depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestSampleData.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
     String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
@@ -195,7 +195,7 @@ public class ThinArchiveUtilsTest {
     File depFile = TEMP_DIR.newFile("dep.jar");
     String depFileHash = HashUtils.bytesHashToString(HashUtils.SHA1.getHash(depFile));
 
-    StartupDependencyDetails details = new StartupDependencyDetails(
+    Dependency details = new Dependency(
         "dep.jar",
         "lib",
         "jar",
