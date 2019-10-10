@@ -17,10 +17,8 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
@@ -50,18 +48,18 @@ public class ArchiveUnthinner {
       final File projectFolder, final File startupDependenciesFile, final Props additionalProps) {
     Set<Dependency> dependencies = getDependenciesFromSpec(startupDependenciesFile);
 
-    String validatorKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
+    String validationKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
 
-    Map<Dependency, FileValidationStatus> depsToValidationStatus = getValidationStatuses(dependencies, validatorKey);
-    // removedDependencies: dependencies that have been processed before and are blacklisted (so should be removed)
-    Set<Dependency> removedDependencies = filterValidationStatus(depsToValidationStatus, FileValidationStatus.REMOVED);
-    // newDependencies: dependencies that are not in storage and need to be verified
-    Set<Dependency> newDependencies = filterValidationStatus(depsToValidationStatus, FileValidationStatus.NEW);
-    // validDependencies: dependencies that are in storage and already verified to be valid
-    Set<Dependency> validDependencies = filterValidationStatus(depsToValidationStatus, FileValidationStatus.VALID);
+    Map<Dependency, FileValidationStatus> depsToValidationStatus = getValidationStatuses(dependencies, validationKey);
+    // removedCachedDeps: dependencies that have been processed before and are blacklisted (so should be removed)
+    Set<Dependency> removedCachedDeps = filterValidationStatus(depsToValidationStatus, FileValidationStatus.REMOVED);
+    // validCachedDeps: dependencies that are in storage and already verified to be valid
+    Set<Dependency> validCachedDeps = filterValidationStatus(depsToValidationStatus, FileValidationStatus.VALID);
+    // newDeps: dependencies that are not in storage and need to be verified
+    Set<Dependency> newDeps = filterValidationStatus(depsToValidationStatus, FileValidationStatus.NEW);
 
     // Download the new dependencies
-    final Set<DependencyFile> downloadedDeps = downloadDependencyFiles(projectFolder, newDependencies);
+    final Set<DependencyFile> downloadedDeps = downloadDependencyFiles(projectFolder, newDeps);
 
     // Validate the project
     Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder, additionalProps);
@@ -71,13 +69,16 @@ public class ArchiveUnthinner {
       return reports;
     }
 
-    // Find which dependencies were unmodified (touchedFiles is a subset of downloadedDeps)
-    // so the difference between then will be the files that were untouched (neither modified nor removed).
+    // Find which dependencies were removed, modified or untouched by the validator
+    // pathToDownloadedDeps is created for performance reasons to allow getDepsFromReports to run in O(n) time
+    // instead of O(n^2).
     Map<String, DependencyFile> pathToDownloadedDeps = getPathToDepFileMap(downloadedDeps);
-    Set<DependencyFile> removedFiles = getDepsFromReports(reports, pathToDownloadedDeps);
-    Set<DependencyFile> modifiedFiles = getModifiedFiles(reports, pathToDownloadedDeps);
-    Set<DependencyFile> untouchedNewDependencies =
-        Sets.difference(downloadedDeps, Sets.union(removedFiles, modifiedFiles));
+    Set<DependencyFile> removedDownloadedDeps =
+        getDepsFromReports(reports, pathToDownloadedDeps, ValidationReport::getRemovedFiles);
+    Set<DependencyFile> modifiedDownloadedDeps =
+        getDepsFromReports(reports, pathToDownloadedDeps, ValidationReport::getModifiedFiles);
+    Set<DependencyFile> untouchedDownloadedDeps =
+        Sets.difference(downloadedDeps, Sets.union(removedDownloadedDeps, modifiedDownloadedDeps));
 
     // Persist the unmodified dependencies and get a list of dependencies that we are 100% sure were successfully
     // persisted. It's possible that we were unable to persist some because another process was also uploading it.
@@ -86,32 +87,25 @@ public class ArchiveUnthinner {
     // upload to storage, we would be in BIG TROUBLE!! because the DB would indicate all is well and that file is persisted
     // but in reality it doesn't exist on storage, so any flows that depend on that dependency will fail, even if you
     // try to reupload them! So we don't want to do that.
-    Set<DependencyFile> guaranteedPersistedDeps = persistUntouchedNewDependencies(untouchedNewDependencies);
+    Set<DependencyFile> guaranteedPersistedDeps = persistUntouchedNewDependencies(untouchedDownloadedDeps);
 
-    updateValidationStatuses(guaranteedPersistedDeps, removedFiles);
+    updateValidationStatuses(guaranteedPersistedDeps, removedDownloadedDeps, validationKey);
 
-    // See if all downloaded dependencies were unmodified
-    if (untouchedNewDependencies.size() < downloadedDeps.size()) {
-      // There were some modified or deleted dependencies,
-      // so we need to remove them from the startup-dependencies.json file.
+    // See if any downloaded deps were modified/removed OR if there are any cached removed dependencies
+    if (untouchedDownloadedDeps.size() < downloadedDeps.size() || removedCachedDeps.size() > 0) {
+      // Either one or more of the dependencies we downloaded was removed/modified during validation
+      // OR there are cached removed dependencies. Either way we need to remove them from the
+      // startup-dependencies.json file.
 
       // Get the final list of startup dependencies that will be downloadable from storage
-      Set<Dependency> finalDependencies = Sets.union(validDependencies, untouchedNewDependencies);
-      rewriteStartupDependencies(startupDependenciesFile, untouchedNewDependencies, existingDependencies);
+      Set<Dependency> finalDeps = Sets.union(validCachedDeps, untouchedDownloadedDeps);
+      rewriteStartupDependencies(startupDependenciesFile, finalDeps);
     }
 
-    // Delete untouched new dependencies from the project
-    untouchedNewDependencies.stream().forEach(d -> d.getFile().delete());
+    // Delete untouched downloaded dependencies from the project
+    untouchedDownloadedDeps.stream().forEach(d -> d.getFile().delete());
 
     return reports;
-  }
-
-  private List<DependencyFile> getUntouchedNewDependencies(Set<DependencyFile> downloadedDependencies,
-      Set<File> modifiedFiles, Set<File> removedFiles) {
-    return downloadedDependencies
-        .stream()
-        .filter(d -> !modifiedFiles.contains(d.getFile()) && !removedFiles.contains(d.getFile()))
-        .collect(Collectors.toList());
   }
 
   private void rewriteStartupDependencies(File startupDependenciesFile, Set<Dependency> finalDependencies) {
@@ -130,6 +124,59 @@ public class ArchiveUnthinner {
     }
   }
 
+  private Set<DependencyFile> persistUntouchedNewDependencies(Set<DependencyFile> untouchedNewDependencies) {
+    try {
+      this.dependencyManager.persistDependencies(untouchedNewDependencies);
+    } catch (Exception e) {
+      throw new ProjectManagerException("Error while persisting dependencies.", e);
+    }
+  }
+
+  private Map<Dependency, FileValidationStatus> getValidationStatuses(Set<Dependency> deps,
+      String validationKey) {
+    try {
+      return this.dependencyManager.getValidationStatuses(deps, validationKey);
+    } catch (SQLException e) {
+      throw new ProjectManagerException(
+          String.format("Unable to query DB for validation statuses "
+            + "for project with validationKey %s", validationKey));
+    }
+  }
+
+  private void updateValidationStatuses(Set<? extends Dependency> guaranteedPersistedDeps,
+      Set<? extends Dependency> removedDeps, String validationKey) {
+    // guaranteedPersistedDeps are new dependencies that we have just validated and found to be VALID and are now
+    // persisted to storage.
+
+    // removedDeps are new dependencies that we have just validated and found to be REMOVED and are NOT persisted
+    // to storage.
+    Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
+    guaranteedPersistedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
+    removedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
+    try {
+      this.dependencyManager.updateValidationStatuses(depValidationStatuses, validationKey);
+    } catch (SQLException e) {
+      throw new ProjectManagerException(
+          String.format("Unable to update DB for validation statuses "
+              + "for project with validationKey %s", validationKey));
+    }
+  }
+
+  private Set<DependencyFile> downloadDependencyFiles(File projectFolder,
+      Set<Dependency> toDownload) {
+    final Set<DependencyFile> downloadedFiles = new HashSet();
+    for (Dependency d : toDownload) {
+      File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
+      try {
+        this.dependencyDownloader.downloadDependency(downloadedJar, d);
+      } catch (IOException | HashNotMatchException e) {
+        throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
+      }
+      downloadedFiles.add(new DependencyFile(downloadedJar, d));
+    }
+    return downloadedFiles;
+  }
+
   private Set<DependencyFile> getDepsFromReports(Map<String, ValidationReport> reports,
       Map<String, DependencyFile> pathToDep, Function<ValidationReport, Set<File>> fn) {
     return reports.values()
@@ -146,43 +193,6 @@ public class ArchiveUnthinner {
         .collect(Collectors.toMap(d -> FileIOUtils.getCanonicalPath(d.getFile()), e -> e));
   }
 
-  private Set<DependencyFile> persistUntouchedNewDependencies(Set<DependencyFile> untouchedNewDependencies) {
-    try {
-      this.dependencyManager.persistDependencies(untouchedNewDependencies);
-    } catch (Exception e) {
-      throw new ProjectManagerException("Error while persisting dependencies.", e);
-    }
-  }
-
-  private Map<Dependency, FileValidationStatus> getValidationStatuses(Set<Dependency> deps,
-      String validatorKey) {
-    try {
-      return this.dependencyManager.getValidationStatuses(deps, validatorKey);
-    } catch (SQLException e) {
-      throw new ProjectManagerException(
-          String.format("Unable to query DB for validation statuses "
-            + "for project with validatorKey %s", validatorKey));
-    }
-  }
-
-  private void updateValidationStatuses(Set<Dependency> guaranteedPersistedDeps,
-      Set<Dependency> removedDeps, String validatorKey) {
-    // guaranteedPersistedDeps are new dependencies that we have just validated and found to be VALID and are now
-    // persisted to storage.
-
-    // removedDeps are new dependencies that we have just validated and found to be REMOVED and are NOT persisted
-    // to storage.
-    Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
-    guaranteedPersistedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
-    removedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
-    try {
-      this.dependencyManager.updateValidationStatuses(depValidationStatuses, validatorKey);
-    } catch (SQLException e) {
-      throw new ProjectManagerException(
-          String.format("Unable to update DB for validation statuses "
-              + "for project with validatorKey %s", validatorKey));
-    }
-  }
 
   private Set<Dependency> filterValidationStatus(Map<Dependency, FileValidationStatus> validationStatuses,
       FileValidationStatus status) {
@@ -191,20 +201,5 @@ public class ArchiveUnthinner {
         .stream()
         .filter(d -> validationStatuses.get(d) == status)
         .collect(Collectors.toSet());
-  }
-
-  private Set<DependencyFile> downloadDependencyFiles(File projectFolder,
-      Set<Dependency> toDownload) {
-    final Set<DependencyFile> downloadedFiles = new HashSet();
-    for (Dependency d : toDownload) {
-      File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
-      try {
-        this.dependencyDownloader.downloadDependency(downloadedJar, d);
-      } catch (IOException | HashNotMatchException e) {
-        throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
-      }
-      downloadedFiles.add(new DependencyFile(downloadedJar, d));
-    }
-    return downloadedFiles;
   }
 }

@@ -33,13 +33,13 @@ public class DependencyManager {
   }
 
   public Map<Dependency, FileValidationStatus> getValidationStatuses(final Set<Dependency> deps,
-      final String validatorKey) throws SQLException {
+      final String validationKey) throws SQLException {
     Map<String, Dependency> hashToDep = new HashMap<>();
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
         "select file_sha1, validation_status from validated_dependencies where validation_key = ? and file_sha1 in ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
 
-    stmnt.setString(1, validatorKey);
+    stmnt.setString(1, validationKey);
 
     // Start at 2 because the first parameter is at index 1, and that is the validator key that we already set.
     int index = 2;
@@ -65,12 +65,12 @@ public class DependencyManager {
   }
 
   public void updateValidationStatuses(final Map<Dependency, FileValidationStatus> depValidationStatuses,
-      final String validatorKey) throws SQLException {
+      final String validationKey) throws SQLException {
     // Order of columns: file_sha1, validation_key, validation_status
     Object[][] rowsToInsert = depValidationStatuses
         .keySet()
         .stream()
-        .map(d -> new Object[]{d.getSHA1(), validatorKey, depValidationStatuses.get(d).getValue()})
+        .map(d -> new Object[]{d.getSHA1(), validationKey, depValidationStatuses.get(d).getValue()})
         .toArray(Object[][]::new);
 
     // We use insert IGNORE because a another process may have been processing the same dependency

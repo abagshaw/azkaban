@@ -12,4 +12,19 @@ public class DependencyFile extends Dependency {
 
   public File getFile() { return this.file; }
   public void setFile(File file) { this.file = file; }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    DependencyFile that = (DependencyFile) o;
+    return file.equals(that.file);
+  }
 }
