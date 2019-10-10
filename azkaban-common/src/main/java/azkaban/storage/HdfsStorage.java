@@ -29,6 +29,7 @@ import azkaban.spi.Storage;
 import azkaban.spi.StorageException;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.utils.Props;
+import java.io.FileNotFoundException;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
@@ -56,17 +57,15 @@ public class HdfsStorage implements Storage {
   private final Path dependencyPath;
 
   @Inject
-  public HdfsStorage(final HdfsAuth hdfsAuth, final FileSystem hdfs,
+  public HdfsStorage(final HdfsAuth hdfsAuth, final FileSystem hdfs, final DistributedFileSystem dfs,
       final AzkabanCommonModuleConfig config, final Props props) throws IOException {
     this.hdfsAuth = requireNonNull(hdfsAuth);
     this.hdfs = requireNonNull(hdfs);
+    this.dfs = requireNonNull(dfs);
 
     this.rootUri = config.getHdfsRootUri();
     requireNonNull(this.rootUri.getAuthority(), "URI must have host:port mentioned.");
     checkArgument(HDFS_SCHEME.equals(this.rootUri.getScheme()));
-
-    dfs = new DistributedFileSystem();
-    dfs.initialize(this.hdfs.getUri(), this.hdfs.getConf());
 
     this.dependencyPath = new Path(this.rootUri.getPath(), DEPENDENCY_FOLDER);
     if (this.hdfs.mkdirs(this.dependencyPath)) {
@@ -139,7 +138,7 @@ public class HdfsStorage implements Storage {
     this.hdfsAuth.authorize();
     try {
       return dfs.isFileClosed(getDependencyPath(dep)) ? FileStatus.CLOSED : FileStatus.OPEN;
-    } catch (final org.apache.hadoop.fs.FileAlreadyExistsException e) {
+    } catch (final FileNotFoundException e) {
       return FileStatus.NON_EXISTANT;
     }
   }

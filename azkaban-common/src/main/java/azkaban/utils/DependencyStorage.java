@@ -35,7 +35,7 @@ public class DependencyStorage {
       final String validatorKey) throws SQLException {
     Map<String, StartupDependencyDetails> hashToDep = new HashMap<>();
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
-        "select file_sha1 from startup_dependencies where validation_key = ? and file_sha1 in ("
+        "select file_sha1 from validated_dependencies where validation_key = ? and file_sha1 in ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
 
     stmnt.setString(1, validatorKey);
@@ -69,12 +69,14 @@ public class DependencyStorage {
       }
     }
 
+    // Prepare to add entries in the validated_dependencies table for each dependency that we are 100% sure
+    // has been successfully persisted to storage.
     String[][] rowsToInsert = persistedDeps
         .stream()
         .map(f -> new String[]{f.getDetails().getSHA1(), validationKey})
         .toArray(String[][]::new);
 
-    this.dbOperator.batch("insert ignore into startup_dependencies values (?, ?)", rowsToInsert);
+    this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?)", rowsToInsert);
   }
 
   private FileStatus persistDependency(final StartupDependencyFile f) throws IOException {
@@ -95,10 +97,6 @@ public class DependencyStorage {
       }
     }
     return status;
-  }
-
-  private void deleteRowsForDependency(final StartupDependencyDetails d) throws SQLException {
-    this.dbOperator.update("delete from startup_dependencies where file_sha1 = ?", d.getSHA1());
   }
 
   private String makeStrWithQuestionMarks(final int num) {

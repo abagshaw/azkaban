@@ -32,6 +32,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +75,21 @@ public class HadoopModule extends AbstractModule{
       return FileSystem.get(hadoopConf);
     } catch (final IOException e) {
       log.error("Unable to initialize HDFS", e);
+      throw new AzkabanException(e);
+    }
+  }
+
+  @Inject
+  @Provides
+  @Singleton
+  public DistributedFileSystem createHadoopDistributedFileSystem(final FileSystem hdfs, final HdfsAuth auth) {
+    try {
+      auth.authorize();
+      DistributedFileSystem dfs = new DistributedFileSystem();
+      dfs.initialize(hdfs.getUri(), hdfs.getConf());
+      return dfs;
+    } catch (final IOException e) {
+      log.error("Unable to initialize HDFS DistributedFileSystem", e);
       throw new AzkabanException(e);
     }
   }
