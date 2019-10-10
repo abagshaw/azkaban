@@ -167,8 +167,9 @@ public class ArchiveUnthinner {
     // removedDeps are new dependencies that we have just validated and found to be REMOVED and are NOT persisted
     // to storage.
     Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
-    guaranteedPersistedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
-    removedDeps.stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
+    // NOTE: .map(Dependency::new) is to ensure our map keys are actually of type Dependency not DependencyFile
+    guaranteedPersistedDeps.stream().map(Dependency::new).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
+    removedDeps.stream().map(Dependency::new).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
     try {
       this.jdbcDependencyManager.updateValidationStatuses(depValidationStatuses, validationKey);
     } catch (SQLException e) {

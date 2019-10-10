@@ -2,8 +2,10 @@ package azkaban.test.executions;
 
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
+import azkaban.spi.FileValidationStatus;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.mockito.ArgumentMatcher;
 
@@ -25,6 +27,30 @@ class DependencyMatcher implements ArgumentMatcher<DependencyFile> {
     }
   }
 }
+/*
+// Custom mockito argument matcher to help with matching Map<Dependency, FileValidationStatus>
+// with Map<DependencyFile, FileValidationStatus>
+class DependencyStatusMapMatcher implements ArgumentMatcher<Map<Dependency, FileValidationStatus>> {
+  private Map<Dependency, FileValidationStatus> expectedDepValidationStatuses;
+  public DependencyStatusMapMatcher(Map<Dependency, FileValidationStatus> expected) {
+    this.expectedDepValidationStatuses = expected;
+  }
+
+  @Override
+  public boolean matches(Map<Dependency, FileValidationStatus> depFile) {
+    try {
+      for (Dependency d : depFile.keySet()) {
+        // d might actually be a DependencyFile so we make a new Dependency to ensure the Map.get() succeeds;
+        if (expectedDepValidationStatuses.get(new Dependency(d)) != depFile.get(d)) {
+          return false;
+        }
+      }
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+}*/
 
 
 public class ThinArchiveTestUtils {

@@ -24,6 +24,10 @@ public class Dependency {
     this(m.get("file"), m.get("destination"), m.get("type"), m.get("ivyCoordinates"), m.get("sha1"));
   }
 
+  public Dependency(Dependency d) {
+    this(d.getFileName(), d.getDestination(), d.getType(), d.getIvyCoordinates(), d.getSHA1());
+  }
+
   @JsonProperty("file")
   public String getFileName() { return fileName; }
   public String getDestination() { return destination; }

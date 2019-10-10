@@ -26,7 +26,7 @@ public class ThinArchiveUtils {
 
   public static Set<Dependency> parseStartupDependencies(final File f) throws IOException {
     final String rawJson = FileUtils.readFileToString(f);
-    return ((HashMap<String, Set<Map<String, String>>>)
+    return ((HashMap<String, List<Map<String, String>>>)
         JSONUtils.parseJSONFromString(rawJson))
         .get("dependencies")
         .stream().map(Dependency::new)
