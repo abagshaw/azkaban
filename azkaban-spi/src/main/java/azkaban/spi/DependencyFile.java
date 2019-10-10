@@ -1,6 +1,8 @@
 package azkaban.spi;
 
 import java.io.File;
+import java.util.Objects;
+
 
 public class DependencyFile extends Dependency {
   private File file;
@@ -25,6 +27,6 @@ public class DependencyFile extends Dependency {
       return false;
     }
     DependencyFile that = (DependencyFile) o;
-    return file.equals(that.file);
+    return Objects.equals(file, that.file);
   }
 }

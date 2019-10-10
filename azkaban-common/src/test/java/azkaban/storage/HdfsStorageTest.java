@@ -23,10 +23,9 @@ import azkaban.spi.FileStatus;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
-import azkaban.test.executions.ThinArchiveTestSampleData;
+import azkaban.test.executions.ThinArchiveTestUtils;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
-import azkaban.utils.ThinArchiveUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URI;
@@ -69,10 +68,10 @@ public class HdfsStorageTest {
 
     this.hdfsStorage = new HdfsStorage(this.hdfsAuth, this.hdfs, this.dfs, config, this.props);
 
-    DEP_A = ThinArchiveTestSampleData.getDepA();
+    DEP_A = ThinArchiveTestUtils.getDepA();
     EXPECTED_PATH_DEP_A = new Path("/path/to/foo/" +
         HdfsStorage.DEPENDENCY_FOLDER + "/"
-        + ThinArchiveTestSampleData.getDepAPath());
+        + ThinArchiveTestUtils.getDepAPath());
   }
 
   @Test

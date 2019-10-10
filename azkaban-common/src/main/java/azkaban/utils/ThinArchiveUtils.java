@@ -1,6 +1,7 @@
 package azkaban.utils;
 
 import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
 import java.io.File;
 import java.io.IOException;
@@ -93,14 +94,14 @@ public class ThinArchiveUtils {
     }
   }
 
-  public static void validateDependencyHash(final File dependencyFile, final Dependency dependencyInfo)
+  public static void validateDependencyHash(final DependencyFile f)
       throws HashNotMatchException {
     try {
-      final byte[] actualFileHash = HashUtils.SHA1.getHash(dependencyFile);
-      if (!HashUtils.isSameHash(dependencyInfo.getSHA1(), actualFileHash)) {
+      final byte[] actualFileHash = HashUtils.SHA1.getHash(f.getFile());
+      if (!HashUtils.isSameHash(f.getSHA1(), actualFileHash)) {
         throw new HashNotMatchException(String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
-            dependencyInfo.getFileName(),
-            dependencyInfo.getSHA1(),
+            f.getFileName(),
+            f.getSHA1(),
             HashUtils.bytesHashToString(actualFileHash)));
       }
     } catch (DecoderException e) {

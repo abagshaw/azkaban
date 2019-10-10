@@ -2,15 +2,15 @@ package azkaban.project;
 
 import azkaban.db.AzkabanDataSource;
 import azkaban.db.DatabaseOperator;
-import azkaban.project.JdbcDependencyManager;
 import azkaban.spi.Dependency;
 import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
-import azkaban.test.executions.ThinArchiveTestSampleData;
+import azkaban.test.executions.ThinArchiveTestUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
@@ -33,9 +33,9 @@ public class JdbcDependencyManagerTest {
   public Storage storage;
   public JdbcDependencyManager jdbcDependencyManager;
 
-  public Dependency DEP_A;
-  public Dependency DEP_B;
-  public Dependency DEP_C;
+  public Dependency depA;
+  public Dependency depB;
+  public Dependency depC;
 
   @Before
   public void setup() {
@@ -44,9 +44,9 @@ public class JdbcDependencyManagerTest {
 
     this.jdbcDependencyManager = new JdbcDependencyManager(this.dbOperator, this.storage);
 
-    DEP_A = ThinArchiveTestSampleData.getDepA();
-    DEP_B = ThinArchiveTestSampleData.getDepB();
-    DEP_C = ThinArchiveTestSampleData.getDepC();
+    depA = ThinArchiveTestUtils.getDepA();
+    depB = ThinArchiveTestUtils.getDepB();
+    depC = ThinArchiveTestUtils.getDepC();
   }
 
   @Test
@@ -68,8 +68,8 @@ public class JdbcDependencyManagerTest {
     // null at the beginning.
     Object[][] results = new Object[][] {
         null,
-        {DEP_A.getSHA1(), FileValidationStatus.REMOVED.getValue()},
-        {DEP_C.getSHA1(), FileValidationStatus.VALID.getValue()}
+        {depA.getSHA1(), FileValidationStatus.REMOVED.getValue()},
+        {depC.getSHA1(), FileValidationStatus.VALID.getValue()}
     };
 
     final AtomicInteger currResultIndex = new AtomicInteger();
@@ -78,13 +78,13 @@ public class JdbcDependencyManagerTest {
     doAnswer((Answer<Integer>) invocation -> (Integer) results[currResultIndex.get()][1]).when(rs).getInt(2);
 
     Map<Dependency, FileValidationStatus> expectedResult = new HashMap();
-    expectedResult.put(DEP_A, FileValidationStatus.REMOVED);
-    expectedResult.put(DEP_B, FileValidationStatus.NEW);
-    expectedResult.put(DEP_C, FileValidationStatus.VALID);
+    expectedResult.put(depA, FileValidationStatus.REMOVED);
+    expectedResult.put(depB, FileValidationStatus.NEW);
+    expectedResult.put(depC, FileValidationStatus.VALID);
 
     // Assert that depB is the only dependency returned as validated
     assertEquals(expectedResult,
-        this.jdbcDependencyManager.getValidationStatuses(ThinArchiveTestSampleData.getDepSetABC(), VALIDATION_KEY));
+        this.jdbcDependencyManager.getValidationStatuses(ThinArchiveTestUtils.getDepSetABC(), VALIDATION_KEY));
   }
 
   @Test
@@ -93,9 +93,31 @@ public class JdbcDependencyManagerTest {
     // and calls dbOperator.batch() but does not verify anything being passed to batch (i.e. the correctness
     // of the SQL query) so as not to make this test too brittle.
     Map<Dependency, FileValidationStatus> inputStatuses = new HashMap();
-    inputStatuses.put(DEP_A, FileValidationStatus.REMOVED);
-    inputStatuses.put(DEP_C, FileValidationStatus.VALID);
+    inputStatuses.put(depA, FileValidationStatus.REMOVED);
+    inputStatuses.put(depC, FileValidationStatus.VALID);
+
+    this.jdbcDependencyManager.updateValidationStatuses(inputStatuses, VALIDATION_KEY);
 
     verify(this.dbOperator).batch(anyString(), any());
+  }
+
+  @Test
+  public void testEmptyGetValidationStatuses() throws Exception {
+    // We pass in an empty set, we expect to get an empty map out
+    Map<Dependency, FileValidationStatus> expectedResult = new HashMap();
+    assertEquals(expectedResult,
+        this.jdbcDependencyManager.getValidationStatuses(new HashSet(), VALIDATION_KEY));
+
+    // No queries should be made to DB
+    verify(this.dbOperator, never()).query(anyString(), any());
+  }
+
+  @Test
+  public void testEmptyUpdateValidationStatuses() throws Exception {
+    // We pass in an empty map
+    this.jdbcDependencyManager.updateValidationStatuses(new HashMap(), VALIDATION_KEY);
+
+    // No updates should be made to DB
+    verify(this.dbOperator, never()).batch(anyString(), any());
   }
 }

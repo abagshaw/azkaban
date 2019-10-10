@@ -20,8 +20,11 @@ package azkaban.project;
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
+import azkaban.spi.FileStatus;
+import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
-import azkaban.test.executions.ThinArchiveTestSampleData;
+import azkaban.test.executions.ThinArchiveTestUtils;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
@@ -35,10 +38,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.skyscreamer.jsonassert.JSONAssert;
 
+import static azkaban.test.executions.ThinArchiveTestUtils.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -82,29 +85,28 @@ public class ArchiveUnthinnerTest {
     libFolder.mkdirs();
     FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
     FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
-        ThinArchiveTestSampleData.getRawJSONDepsAB());
+        ThinArchiveTestUtils.getRawJSONDepsAB());
 
     // Setup sample dependencies
-    depA = ThinArchiveTestSampleData.getDepA();
-    depB = ThinArchiveTestSampleData.getDepB();
+    depA = ThinArchiveTestUtils.getDepA();
+    depB = ThinArchiveTestUtils.getDepB();
     depAInArtifactory = TEMP_DIR.newFile(depA.getFileName());
     depBInArtifactory = TEMP_DIR.newFile(depB.getFileName());
-    FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestSampleData.getDepAContent());
-    FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestSampleData.getDepBContent());
+    FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestUtils.getDepAContent());
+    FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestUtils.getDepBContent());
 
     // When downloadDependency() is called, write the content to the file as if it was downloaded
     doAnswer((Answer) invocation -> {
-      File destFile = (File) invocation.getArguments()[0];
-      Dependency requestDependency = (Dependency) invocation.getArguments()[1];
+      DependencyFile destDep = (DependencyFile) invocation.getArguments()[0];
 
-      String contentToWrite = requestDependency.equals(depA) ?
-          ThinArchiveTestSampleData.getDepAContent() :
-          ThinArchiveTestSampleData.getDepBContent();
+      String contentToWrite = destDep.equals(depA) ?
+          ThinArchiveTestUtils.getDepAContent() :
+          ThinArchiveTestUtils.getDepBContent();
 
-      FileUtils.writeStringToFile(destFile, contentToWrite);
+      FileUtils.writeStringToFile(destDep.getFile(), contentToWrite);
       return null;
     }).when(this.dependencyDownloader)
-        .downloadDependency(any(File.class), any(Dependency.class));
+        .downloadDependency(any(DependencyFile.class));
 
     // When the unthinner attempts to get a validationKey for the project, return our sample one.
     when(this.validatorUtils.getCacheKey(eq(this.project), eq(this.projectFolder), any()))
@@ -112,15 +114,22 @@ public class ArchiveUnthinnerTest {
   }
 
   @Test
-  public void testSimpleFreshProject() throws Exception {
-    // Indicate that the dependencies are not validated, forcing them to be downloaded from artifactory
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depA, VALIDATION_KEY)).thenReturn(false);
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depB, VALIDATION_KEY)).thenReturn(false);
+  public void testAllNew() throws Exception {
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+        .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
     when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
         .thenReturn(new HashMap<>());
+
+    // Indicate both deps persisted successfully
+    when(this.storage.putDependency(depEq(depA))).thenReturn(FileStatus.CLOSED);
+    when(this.storage.putDependency(depEq(depB))).thenReturn(FileStatus.CLOSED);
 
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
@@ -130,25 +139,25 @@ public class ArchiveUnthinnerTest {
     // Verify that ValidationReport is as expected (empty)
     assertEquals(result, new HashMap<>());
 
-    // Verify that dependencies were persisted to storage
-    verify(this.jdbcDependencyManager, Mockito.times(1))
-        .persistDependency(any(File.class), eq(depA), eq(VALIDATION_KEY));
-    verify(this.jdbcDependencyManager, Mockito.times(1))
-        .persistDependency(any(File.class), eq(depB), eq(VALIDATION_KEY));
+    // Verify that both dependencies were persisted to storage
+    assertEquals(ThinArchiveTestUtils.getDepSetAB(), attemptedPersistedDeps);
 
     // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
 
     // Verify that the startup-dependencies.json file is NOT modified
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepsAB(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepsAB(), finalJSON, false);
   }
 
   @Test
-  public void testFileAlreadyInStorage() throws Exception {
-    // Indicate that the depA is validated, but depB is not (forcing depB to be downloaded)
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depA, VALIDATION_KEY)).thenReturn(true);
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depB, VALIDATION_KEY)).thenReturn(false);
+  public void testCachedValid() throws Exception {
+    // Indicate that the depA is cached VALID, but depB is NEW (forcing depB to be downloaded)
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.VALID);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+        .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return an empty map (indicating that the
     // validator found no errors and made no changes to the project)
@@ -164,28 +173,62 @@ public class ArchiveUnthinnerTest {
     assertEquals(result, new HashMap<>());
 
     // Verify that ONLY depB was persisted to storage, but NOT depA
-    verify(this.jdbcDependencyManager, Mockito.never())
-        .persistDependency(any(File.class), eq(depA), eq(VALIDATION_KEY));
-    verify(this.jdbcDependencyManager, Mockito.times(1))
-        .persistDependency(any(File.class), eq(depB), eq(VALIDATION_KEY));
+    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
 
     // Verify that the startup-dependencies.json file is NOT modified
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepsAB(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepsAB(), finalJSON, false);
+  }
+
+  @Test
+  public void testCachedRemoved() throws Exception {
+    // Indicate that depA is cached REMOVED, but depB is NEW (forcing depB to be downloaded)
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.REMOVED);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+        .thenReturn(sampleValidationStatuses);
+
+    // When the unthinner attempts to validate the project, return an empty map (indicating that the
+    // validator found no errors and made no changes to the project)
+    when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
+        .thenReturn(new HashMap<>());
+
+    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    Map<String, ValidationReport> result = this.archiveUnthinner
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
+
+    // Verify that ValidationReport is as expected (empty)
+    assertEquals(result, new HashMap<>());
+
+    // Verify that ONLY depB was persisted to storage, but NOT depA (depA wasn't even downloaded so that wouldn't
+    // even be possible...)
+    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
+
+    // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
+    assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
+
+    // Verify that the startup-dependencies.json file now contains ONLY depB
+    String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepB(), finalJSON, false);
   }
 
   @Test
   public void testValidatorDeleteFile() throws Exception {
-    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depA, VALIDATION_KEY)).thenReturn(false);
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depB, VALIDATION_KEY)).thenReturn(false);
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+        .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
     // was removed.
-    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFile());
+    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFileName());
     Set<File> removedFiles = new HashSet();
     removedFiles.add(depAInProject);
 
@@ -211,28 +254,28 @@ public class ArchiveUnthinnerTest {
     assertEquals(0, result.get("sample").getModifiedFiles().size());
 
     // Verify that ONLY depB was persisted to storage, but NOT depA
-    verify(this.jdbcDependencyManager, Mockito.never())
-        .persistDependency(any(File.class), eq(depA), eq(VALIDATION_KEY));
-    verify(this.jdbcDependencyManager, Mockito.times(1))
-        .persistDependency(any(File.class), eq(depB), eq(VALIDATION_KEY));
+    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
 
     // Verify that no dependencies were added to project /lib folder and only original snapshot jar remains
     assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
 
     // Verify that the startup-dependencies.json file now contains ONLY depB
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepB(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepB(), finalJSON, false);
   }
 
   @Test
   public void testValidatorModifyFile() throws Exception {
-    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depA, VALIDATION_KEY)).thenReturn(false);
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depB, VALIDATION_KEY)).thenReturn(false);
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+        .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
     // was modified.
-    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFile());
+    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFileName());
     Set<File> modifiedFiles = new HashSet();
     modifiedFiles.add(depAInProject);
 
@@ -256,10 +299,7 @@ public class ArchiveUnthinnerTest {
     assertEquals(0, result.get("sample").getRemovedFiles().size());
 
     // Verify that ONLY depB was persisted to storage, but NOT depA
-    verify(this.jdbcDependencyManager, Mockito.never())
-        .persistDependency(any(File.class), eq(depA), eq(VALIDATION_KEY));
-    verify(this.jdbcDependencyManager, Mockito.times(1))
-        .persistDependency(any(File.class), eq(depB), eq(VALIDATION_KEY));
+    assertEquals(ThinArchiveTestUtils.getDepSetB(), attemptedPersistedDeps);
 
     // Verify that depA remains in the projectFolder (total of two jars)
     assertEquals(2, new File(projectFolder, depA.getDestination()).listFiles().length);
@@ -267,14 +307,17 @@ public class ArchiveUnthinnerTest {
 
     // Verify that the startup-dependencies.json file now contains ONLY depB
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepB(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepB(), finalJSON, false);
   }
 
   @Test
   public void testReportWithError() throws Exception {
-    // Indicate that the dependencies are not in storage, forcing them to be downloaded from artifactory
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depA, VALIDATION_KEY)).thenReturn(false);
-    when(this.jdbcDependencyManager.dependencyExistsAndIsValidated(depB, VALIDATION_KEY)).thenReturn(false);
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), VALIDATION_KEY))
+        .thenReturn(sampleValidationStatuses);
 
     // When the unthinner attempts to validate the project, return a report with ValidationStatus.ERROR
     doAnswer((Answer<Map>) invocation -> {
@@ -298,5 +341,7 @@ public class ArchiveUnthinnerTest {
 
     // Verify that ValidationReport has an ERROR status.
     assertEquals(ValidationStatus.ERROR, result.get("sample").getStatus());
+
+    // Ass
   }
 }

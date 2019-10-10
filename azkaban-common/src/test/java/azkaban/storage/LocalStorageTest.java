@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.spi.Storage;
-import azkaban.test.executions.ThinArchiveTestSampleData;
+import azkaban.test.executions.ThinArchiveTestUtils;
 import azkaban.utils.HashUtils;
 import azkaban.utils.Props;
 import java.io.BufferedReader;
@@ -33,11 +33,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
-import net.bytebuddy.asm.Advice;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -118,23 +116,23 @@ public class LocalStorageTest {
 
   @Test
   public void testPutGetExistsDependency() throws Exception {
-    final File tmpJar = TEMP_DIR.newFile(ThinArchiveTestSampleData.getDepA().getFile());
-    FileUtils.writeStringToFile(tmpJar, ThinArchiveTestSampleData.getDepAContent());
+    final File tmpJar = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFile());
+    FileUtils.writeStringToFile(tmpJar, ThinArchiveTestUtils.getDepAContent());
 
-    this.localStorage.putDependency(tmpJar, ThinArchiveTestSampleData.getDepA());
+    this.localStorage.putDependency(tmpJar, ThinArchiveTestUtils.getDepA());
     final File expectedTargetFile = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER
-        + File.separator + ThinArchiveTestSampleData.getDepAPath());
+        + File.separator + ThinArchiveTestUtils.getDepAPath());
 
     assertTrue(expectedTargetFile.exists());
 
     final InputStream is =
-        this.localStorage.getDependency(ThinArchiveTestSampleData.getDepA());
+        this.localStorage.getDependency(ThinArchiveTestUtils.getDepA());
 
     BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
     String fileContent = br.lines().collect(Collectors.joining(System.lineSeparator()));
 
-    assertEquals(ThinArchiveTestSampleData.getDepAContent(), fileContent);
+    assertEquals(ThinArchiveTestUtils.getDepAContent(), fileContent);
 
-    assertTrue(this.localStorage.existsDependency(ThinArchiveTestSampleData.getDepA()));
+    assertTrue(this.localStorage.existsDependency(ThinArchiveTestUtils.getDepA()));
   }
 }

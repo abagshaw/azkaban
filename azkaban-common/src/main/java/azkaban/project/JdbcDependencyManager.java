@@ -29,7 +29,14 @@ public class JdbcDependencyManager {
 
   public Map<Dependency, FileValidationStatus> getValidationStatuses(final Set<Dependency> deps,
       final String validationKey) throws SQLException {
+    Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
+    if (deps.size() == 0) {
+      // There's nothing for us to do.
+      return depValidationStatuses;
+    }
+
     Map<String, Dependency> hashToDep = new HashMap<>();
+
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
         "select file_sha1, validation_status from validated_dependencies where validation_key = ? and file_sha1 in ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
@@ -45,7 +52,6 @@ public class JdbcDependencyManager {
 
     ResultSet rs = stmnt.executeQuery();
 
-    Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
     while (rs.next()) {
       Dependency d = hashToDep.remove(rs.getString(1));
       FileValidationStatus v = FileValidationStatus.valueOf(rs.getInt(2));
@@ -61,6 +67,10 @@ public class JdbcDependencyManager {
 
   public void updateValidationStatuses(final Map<Dependency, FileValidationStatus> depValidationStatuses,
       final String validationKey) throws SQLException {
+    if (depValidationStatuses.size() == 0) {
+      return;
+    }
+
     // Order of columns: file_sha1, validation_key, validation_status
     Object[][] rowsToInsert = depValidationStatuses
         .keySet()

@@ -18,8 +18,9 @@
 package azkaban.utils;
 
 import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
-import azkaban.test.executions.ThinArchiveTestSampleData;
+import azkaban.test.executions.ThinArchiveTestUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,10 +49,10 @@ public class ThinArchiveUtilsTest {
   public void testGetDependencyFile() throws Exception {
     File someFolder = TEMP_DIR.newFolder("someproject");
 
-    File dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestSampleData.getDepA());
-    File expectedDependencyFile = new File(someFolder, ThinArchiveTestSampleData.getDepA().getDestination()
+    File dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestUtils.getDepA());
+    File expectedDependencyFile = new File(someFolder, ThinArchiveTestUtils.getDepA().getDestination()
         + File.separator
-        + ThinArchiveTestSampleData.getDepA().getFileName());
+        + ThinArchiveTestUtils.getDepA().getFileName());
 
     assertEquals(expectedDependencyFile, dependencyFile);
   }
@@ -59,25 +60,25 @@ public class ThinArchiveUtilsTest {
   @Test
   public void testWriteStartupDependencies() throws Exception {
     File outFile = TEMP_DIR.newFile("startup-dependencies.json");
-    ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestSampleData.getDepSetAB());
+    ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestUtils.getDepSetAB());
 
     String writtenJSON = FileUtils.readFileToString(outFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepsAB(), writtenJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepsAB(), writtenJSON, false);
   }
 
   @Test
   public void testReadStartupDependencies() throws Exception {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
-    FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSONDepsAB());
+    FileUtils.writeStringToFile(inFile, ThinArchiveTestUtils.getRawJSONDepsAB());
 
     Set<Dependency> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
-    assertEquals(ThinArchiveTestSampleData.getDepSetAB(), parsedDependencies);
+    assertEquals(ThinArchiveTestUtils.getDepSetAB(), parsedDependencies);
   }
 
   @Test
   public void testConvertIvyCoordinateToPath() throws Exception {
-    assertEquals(ThinArchiveTestSampleData.getDepAPath(),
-        ThinArchiveUtils.convertIvyCoordinateToPath(ThinArchiveTestSampleData.getDepA()));
+    assertEquals(ThinArchiveTestUtils.getDepAPath(),
+        ThinArchiveUtils.convertIvyCoordinateToPath(ThinArchiveTestUtils.getDepA()));
   }
 
   @Test
@@ -86,7 +87,7 @@ public class ThinArchiveUtilsTest {
     // in startup-dependencies.json, depA) to be replaced with the HDFS path, but the other jar should still have
     // its normal local filepath
 
-    Dependency depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestUtils.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
     String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
@@ -96,7 +97,7 @@ public class ThinArchiveUtilsTest {
 
     // Put depA in the correct location
     File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFileName());
-    FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
+    FileUtils.writeStringToFile(depAFile, ThinArchiveTestUtils.getDepAContent());
 
     // Put some other random jar in the same folder as depA
     File otherRandomJar = new File(projectDir, depA.getDestination() + File.separator + "blahblah-1.0.0.jar");
@@ -104,7 +105,7 @@ public class ThinArchiveUtilsTest {
 
     // Write the startup-dependencies.json file
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(projectDir);
-    FileUtils.writeStringToFile(startupDependenciesFile, ThinArchiveTestSampleData.getRawJSONDepA());
+    FileUtils.writeStringToFile(startupDependenciesFile, ThinArchiveTestUtils.getRawJSONDepA());
 
     List<String> jarPaths = new ArrayList<>();
     jarPaths.add(depAFile.getCanonicalPath());
@@ -126,7 +127,7 @@ public class ThinArchiveUtilsTest {
     // file in this project, we expect none of the paths to be replaced (the input paths should be returned without
     // any modification)
 
-    Dependency depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestUtils.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
     String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
@@ -136,7 +137,7 @@ public class ThinArchiveUtilsTest {
 
     // Put depA in the correct location
     File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFileName());
-    FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
+    FileUtils.writeStringToFile(depAFile, ThinArchiveTestUtils.getDepAContent());
 
     List<String> jarPaths = new ArrayList<>();
     jarPaths.add(depAFile.getCanonicalPath());
@@ -154,7 +155,7 @@ public class ThinArchiveUtilsTest {
     // This is a test on a project from a THIN archive but with a malformed startup-dependencies.json file
     // we expect the original local file paths to be returned, with no modifications and no exceptions thrown.
 
-    Dependency depA = ThinArchiveTestSampleData.getDepA();
+    Dependency depA = ThinArchiveTestUtils.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
     String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
@@ -164,7 +165,7 @@ public class ThinArchiveUtilsTest {
 
     // Put depA in the correct location
     File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFileName());
-    FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
+    FileUtils.writeStringToFile(depAFile, ThinArchiveTestUtils.getDepAContent());
 
     // Write the startup-dependencies.json file
     File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(projectDir);
@@ -184,10 +185,11 @@ public class ThinArchiveUtilsTest {
   @Test
   public void testValidateDependencyHashValid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
-    FileUtils.writeStringToFile(depFile, ThinArchiveTestSampleData.getDepAContent());
+    FileUtils.writeStringToFile(depFile, ThinArchiveTestUtils.getDepAContent());
+    DependencyFile f = new DependencyFile(depFile, ThinArchiveTestUtils.getDepA());
 
     // This should complete without an exception
-    ThinArchiveUtils.validateDependencyHash(depFile, ThinArchiveTestSampleData.getDepA());
+    ThinArchiveUtils.validateDependencyHash(f);
   }
 
   @Test(expected = HashNotMatchException.class)
@@ -201,8 +203,9 @@ public class ThinArchiveUtilsTest {
         "jar",
         "com.linkedin.test:blahblah:1.0.1",
         "73f018101ec807672cd3b06d5d7a0fc48f54428f"); // This is not the hash of depFile
+    DependencyFile f = new DependencyFile(depFile, details);
 
     // This should throw an exception because the hashes don't match
-    ThinArchiveUtils.validateDependencyHash(depFile, details);
+    ThinArchiveUtils.validateDependencyHash(f);
   }
 }

@@ -183,12 +183,13 @@ public class ArchiveUnthinner {
     final Set<DependencyFile> downloadedFiles = new HashSet();
     for (Dependency d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
+      DependencyFile downloadedDependency = new DependencyFile(downloadedJar, d);
       try {
-        this.dependencyDownloader.downloadDependency(downloadedJar, d);
+        this.dependencyDownloader.downloadDependency(downloadedDependency);
       } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
       }
-      downloadedFiles.add(new DependencyFile(downloadedJar, d));
+      downloadedFiles.add(downloadedDependency);
     }
     return downloadedFiles;
   }

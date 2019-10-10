@@ -1,6 +1,7 @@
 package azkaban.utils;
 
 import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -20,30 +21,30 @@ public class DependencyDownloader {
     this.props = props;
   }
 
-  public void downloadDependency(final File destination, final Dependency d)
+  public void downloadDependency(final DependencyFile f)
       throws HashNotMatchException, IOException {
-    downloadDependency(destination, d, 0);
+    downloadDependency(f, 0);
   }
 
-  private void downloadDependency(final File destination, final Dependency d, int tries)
+  private void downloadDependency(final DependencyFile f, int tries)
       throws HashNotMatchException, IOException {
     try {
       tries++;
-      FileDownloaderUtils.downloadToFile(destination, getUrlForDependency(d));
+      FileDownloaderUtils.downloadToFile(f.getFile(), getUrlForDependency(f));
     } catch (IOException e) {
       if (tries < MAX_DEPENDENCY_DOWNLOAD_TRIES) {
-        downloadDependency(destination, d, tries);
+        downloadDependency(f, tries);
         return;
       }
       throw e;
     }
 
     try {
-      validateDependencyHash(destination, d);
+      validateDependencyHash(f);
     } catch (HashNotMatchException e) {
       if (tries < MAX_DEPENDENCY_DOWNLOAD_TRIES) {
         // downloadDependency will overwrite our destination file if attempted again
-        downloadDependency(destination, d, tries);
+        downloadDependency(f, tries);
         return;
       }
       throw e;

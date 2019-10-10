@@ -1,12 +1,39 @@
 package azkaban.test.executions;
 
 import azkaban.spi.Dependency;
+import azkaban.spi.DependencyFile;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.mockito.ArgumentMatcher;
+
+import static org.mockito.Matchers.*;
+
+// Custom mockito argument matcher to help with matching Dependency with DependencyFile
+class DependencyMatcher extends ArgumentMatcher<DependencyFile> {
+  private Dependency dep;
+  public DependencyMatcher(Dependency d) {
+    this.dep = d;
+  }
+
+  @Override
+  public boolean matches(Object depFile) {
+    try {
+      return dep.getFileName().equals(((Dependency) depFile).getFileName());
+    } catch (Exception e) {
+      return false;
+    }
+  }
+}
 
 
-public class ThinArchiveTestSampleData {
+public class ThinArchiveTestUtils {
+  public static DependencyFile depEq(Dependency dep) {
+    return argThat(new DependencyMatcher(dep));
+  }
+
+  public static Set getDepSetA() { return new HashSet(Arrays.asList(getDepA())); }
+  public static Set getDepSetB() { return new HashSet(Arrays.asList(getDepB())); }
   public static Set getDepSetAB() { return new HashSet(Arrays.asList(getDepA(), getDepB())); }
   public static Set getDepSetABC() { return new HashSet(Arrays.asList(getDepA(), getDepB(), getDepC())); }
 
