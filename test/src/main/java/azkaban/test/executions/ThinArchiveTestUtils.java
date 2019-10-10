@@ -7,17 +7,17 @@ import java.util.HashSet;
 import java.util.Set;
 import org.mockito.ArgumentMatcher;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 
 // Custom mockito argument matcher to help with matching Dependency with DependencyFile
-class DependencyMatcher extends ArgumentMatcher<DependencyFile> {
+class DependencyMatcher implements ArgumentMatcher<DependencyFile> {
   private Dependency dep;
   public DependencyMatcher(Dependency d) {
     this.dep = d;
   }
 
   @Override
-  public boolean matches(Object depFile) {
+  public boolean matches(DependencyFile depFile) {
     try {
       return dep.getFileName().equals(((Dependency) depFile).getFileName());
     } catch (Exception e) {

@@ -21,5 +21,6 @@ jar {
 dependencies {
     compile deps.awaitility
     compile deps.assertj
+    compile deps.mockito
     compile project(':azkaban-spi')
 }
