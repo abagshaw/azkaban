@@ -115,14 +115,14 @@ public class LocalStorage implements Storage {
 
   @Override
   public void putDependency(DependencyFile f) {
-    final File targetFile = getDependencyFile(f.getDetails());
+    final File targetFile = getDependencyFile(f);
 
     // Copy file to storage dir
     try {
       targetFile.getParentFile().mkdirs();
       FileUtils.copyFile(f.getFile(), targetFile);
     } catch (final IOException e) {
-      log.error("LocalStorage error in putDependency(): name: " + f.getDetails().getFile());
+      log.error("LocalStorage error in putDependency(): name: " + f.getFileName());
       throw new StorageException(e);
     }
   }

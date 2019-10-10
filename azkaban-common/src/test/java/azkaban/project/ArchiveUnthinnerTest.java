@@ -82,7 +82,7 @@ public class ArchiveUnthinnerTest {
     libFolder.mkdirs();
     FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
     FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
-        ThinArchiveTestSampleData.getRawJSONBothDeps());
+        ThinArchiveTestSampleData.getRawJSONDepsAB());
 
     // Setup sample dependencies
     depA = ThinArchiveTestSampleData.getDepA();
@@ -141,7 +141,7 @@ public class ArchiveUnthinnerTest {
 
     // Verify that the startup-dependencies.json file is NOT modified
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONBothDeps(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepsAB(), finalJSON, false);
   }
 
   @Test
@@ -174,7 +174,7 @@ public class ArchiveUnthinnerTest {
 
     // Verify that the startup-dependencies.json file is NOT modified
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONBothDeps(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepsAB(), finalJSON, false);
   }
 
   @Test

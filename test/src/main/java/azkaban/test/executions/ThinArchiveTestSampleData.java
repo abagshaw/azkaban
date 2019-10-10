@@ -7,39 +7,13 @@ import java.util.Set;
 
 
 public class ThinArchiveTestSampleData {
-  public static Set getDepSet() { return new HashSet(Arrays.asList(getDepA(), getDepB())); }
-
-  public static String getRawJSONBothDeps() {
-    return "{" +
-        "    \"dependencies\": [" +
-        "        {" +
-        "            \"sha1\": \"131BD316A77423E6B80D93262B576C139C72B4C3\"," +
-        "            \"file\": \"aaaa.jar\"," +
-        "            \"destination\": \"lib\"," +
-        "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testeraaaa:1.0.1\"" +
-        "        }," +
-        "        {" +
-        "            \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
-        "            \"file\": \"bbbb.jar\"," +
-        "            \"destination\": \"lib\"," +
-        "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testerbbbb:1.0.1\"" +
-        "        }" +
-        "    ]" +
-        "}";
-  }
+  public static Set getDepSetAB() { return new HashSet(Arrays.asList(getDepA(), getDepB())); }
+  public static Set getDepSetABC() { return new HashSet(Arrays.asList(getDepA(), getDepB(), getDepC())); }
 
   public static String getRawJSONDepA() {
     return "{" +
         "    \"dependencies\": [" +
-        "        {" +
-        "            \"sha1\": \"131BD316A77423E6B80D93262B576C139C72B4C3\"," +
-        "            \"file\": \"aaaa.jar\"," +
-        "            \"destination\": \"lib\"," +
-        "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testeraaaa:1.0.1\"" +
-        "        }" +
+                depAJSONBlock() +
         "    ]" +
         "}";
   }
@@ -47,14 +21,65 @@ public class ThinArchiveTestSampleData {
   public static String getRawJSONDepB() {
     return "{" +
         "    \"dependencies\": [" +
-        "        {" +
-        "            \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
-        "            \"file\": \"bbbb.jar\"," +
-        "            \"destination\": \"lib\"," +
-        "            \"type\": \"jar\"," +
-        "            \"ivyCoordinates\": \"com.linkedin.test:testerbbbb:1.0.1\"" +
-        "        }" +
+                depBJSONBlock() +
         "    ]" +
+        "}";
+  }
+
+  public static String getRawJSONDepC() {
+    return "{" +
+        "    \"dependencies\": [" +
+                depCJSONBlock() +
+        "    ]" +
+        "}";
+  }
+
+  public static String getRawJSONDepsAB() {
+    return "{" +
+        "    \"dependencies\": [" +
+                depAJSONBlock() + "," +
+                depBJSONBlock() +
+        "    ]" +
+        "}";
+  }
+
+  public static String getRawJSONDepsABC() {
+    return "{" +
+        "    \"dependencies\": [" +
+                depAJSONBlock() + "," +
+                depBJSONBlock() + "," +
+                depCJSONBlock() +
+        "    ]" +
+        "}";
+  }
+
+  private static String depAJSONBlock() {
+    return "{" +
+        "    \"sha1\": \"131BD316A77423E6B80D93262B576C139C72B4C3\"," +
+        "    \"file\": \"aaaa.jar\"," +
+        "    \"destination\": \"lib\"," +
+        "    \"type\": \"jar\"," +
+        "    \"ivyCoordinates\": \"com.linkedin.test:testeraaaa:1.0.1\"" +
+        "}";
+  }
+
+  private static String depBJSONBlock() {
+    return "{" +
+        "    \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
+        "    \"file\": \"bbbb.jar\"," +
+        "    \"destination\": \"lib\"," +
+        "    \"type\": \"jar\"," +
+        "    \"ivyCoordinates\": \"com.linkedin.test:testerbbbb:1.0.1\"" +
+        "}";
+  }
+
+  private static String depCJSONBlock() {
+    return "{" +
+        "    \"sha1\": \"F873F39163F5B43DBF1FEE63CBCE284074896221\"," +
+        "    \"file\": \"cccc.jar\"," +
+        "    \"destination\": \"lib\"," +
+        "    \"type\": \"jar\"," +
+        "    \"ivyCoordinates\": \"com.linkedin.test:testercccc:1.0.1\"" +
         "}";
   }
 
@@ -82,5 +107,18 @@ public class ThinArchiveTestSampleData {
       "jar",
       "com.linkedin.test:testerbbbb:1.0.1",
       "9461919846E1E7C8FC74FEE95AA6AC74993BE71E");
+  }
+
+  public static String getDepCContent() { return "myprecious"; }
+  public static String getDepCPath() {
+    return "com/linkedin/test/testercccc/1.0.1/cccc.jar";
+  }
+  public static Dependency getDepC() {
+    return new Dependency(
+        "cccc.jar",
+        "lib",
+        "jar",
+        "com.linkedin.test:testercccc:1.0.1",
+        "F873F39163F5B43DBF1FEE63CBCE284074896221");
   }
 }

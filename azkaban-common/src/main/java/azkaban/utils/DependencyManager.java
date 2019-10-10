@@ -105,9 +105,12 @@ public class DependencyManager {
         status = FileStatus.CLOSED;
       } catch (FileAlreadyExistsException e) {
         // Looks like another process beat us to the race. It started writing the file before we could.
-        // It's possible that the file completed writing the file, but it's also possible that the file is
+        // It's possible that the process completed writing the file, but it's also possible that the file is
         // still being written to. We will assume the worst case (the file is still being written to) and
-        // return a status of OPEN so as not to persist this entry in the DB.
+        // return a status of OPEN so as not to persist this entry in the DB. Next time a project is uploaded
+        // that depends on this dependency, it will be identified as CLOSED on storage and then persisted in DB.
+        // So essentially, we're just deferring caching the results of validation for this dependency until next
+        // project upload.
         status = FileStatus.OPEN;
       } catch (IOException e) {
         log.error("Error while attempting to persist dependency " + f.getFileName());

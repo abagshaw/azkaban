@@ -51,7 +51,7 @@ public class ThinArchiveUtilsTest {
     File dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestSampleData.getDepA());
     File expectedDependencyFile = new File(someFolder, ThinArchiveTestSampleData.getDepA().getDestination()
         + File.separator
-        + ThinArchiveTestSampleData.getDepA().getFile());
+        + ThinArchiveTestSampleData.getDepA().getFileName());
 
     assertEquals(expectedDependencyFile, dependencyFile);
   }
@@ -59,19 +59,19 @@ public class ThinArchiveUtilsTest {
   @Test
   public void testWriteStartupDependencies() throws Exception {
     File outFile = TEMP_DIR.newFile("startup-dependencies.json");
-    ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestSampleData.getDepList());
+    ThinArchiveUtils.writeStartupDependencies(outFile, ThinArchiveTestSampleData.getDepSetAB());
 
     String writtenJSON = FileUtils.readFileToString(outFile);
-    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONBothDeps(), writtenJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestSampleData.getRawJSONDepsAB(), writtenJSON, false);
   }
 
   @Test
   public void testReadStartupDependencies() throws Exception {
     File inFile = TEMP_DIR.newFile("startup-dependencies.json");
-    FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSONBothDeps());
+    FileUtils.writeStringToFile(inFile, ThinArchiveTestSampleData.getRawJSONDepsAB());
 
     Set<Dependency> parsedDependencies = ThinArchiveUtils.parseStartupDependencies(inFile);
-    assertEquals(ThinArchiveTestSampleData.getDepList(), parsedDependencies);
+    assertEquals(ThinArchiveTestSampleData.getDepSetAB(), parsedDependencies);
   }
 
   @Test
@@ -95,7 +95,7 @@ public class ThinArchiveUtilsTest {
     props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
 
     // Put depA in the correct location
-    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFile());
+    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFileName());
     FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
 
     // Put some other random jar in the same folder as depA
@@ -135,7 +135,7 @@ public class ThinArchiveUtilsTest {
     props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
 
     // Put depA in the correct location
-    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFile());
+    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFileName());
     FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
 
     List<String> jarPaths = new ArrayList<>();
@@ -163,7 +163,7 @@ public class ThinArchiveUtilsTest {
     props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
 
     // Put depA in the correct location
-    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFile());
+    File depAFile = new File(projectDir, depA.getDestination() + File.separator + depA.getFileName());
     FileUtils.writeStringToFile(depAFile, ThinArchiveTestSampleData.getDepAContent());
 
     // Write the startup-dependencies.json file

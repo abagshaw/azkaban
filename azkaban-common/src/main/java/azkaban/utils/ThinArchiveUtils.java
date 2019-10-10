@@ -20,7 +20,7 @@ public class ThinArchiveUtils {
   }
 
   public static File getDependencyFile(final File projectFolder, final Dependency d) {
-    return new File(projectFolder, d.getDestination() + File.separator + d.getFile());
+    return new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
   }
 
   public static Set<Dependency> parseStartupDependencies(final File f) throws IOException {
@@ -44,7 +44,7 @@ public class ThinArchiveUtils {
     return coordinateParts[0].replace(".", "/") + "/"
         + coordinateParts[1] + "/"
         + coordinateParts[2] + "/"
-        + dep.getFile();
+        + dep.getFileName();
   }
 
   public static List<String> replaceLocalPathsWithStoragePaths(final File projectFolder,
@@ -99,7 +99,7 @@ public class ThinArchiveUtils {
       final byte[] actualFileHash = HashUtils.SHA1.getHash(dependencyFile);
       if (!HashUtils.isSameHash(dependencyInfo.getSHA1(), actualFileHash)) {
         throw new HashNotMatchException(String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
-            dependencyInfo.getFile(),
+            dependencyInfo.getFileName(),
             dependencyInfo.getSHA1(),
             HashUtils.bytesHashToString(actualFileHash)));
       }

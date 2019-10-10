@@ -50,6 +50,7 @@ public class ArchiveUnthinner {
 
     String validationKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
 
+    // Find the cached validation status (or NEW if the dep isn't cached) for each dependency.
     Map<Dependency, FileValidationStatus> depsToValidationStatus = getValidationStatuses(dependencies, validationKey);
     // removedCachedDeps: dependencies that have been processed before and are blacklisted (so should be removed)
     Set<Dependency> removedCachedDeps = filterValidationStatus(depsToValidationStatus, FileValidationStatus.REMOVED);
@@ -126,7 +127,7 @@ public class ArchiveUnthinner {
 
   private Set<DependencyFile> persistUntouchedNewDependencies(Set<DependencyFile> untouchedNewDependencies) {
     try {
-      this.dependencyManager.persistDependencies(untouchedNewDependencies);
+      return this.dependencyManager.persistDependencies(untouchedNewDependencies);
     } catch (Exception e) {
       throw new ProjectManagerException("Error while persisting dependencies.", e);
     }
