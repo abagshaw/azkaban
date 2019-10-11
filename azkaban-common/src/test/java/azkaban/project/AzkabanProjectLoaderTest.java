@@ -169,22 +169,78 @@ public class AzkabanProjectLoaderTest {
       File unzippedFinalProjFolder = TEMP_DIR.newFolder("finalproj");
       Utils.unzip(new ZipFile(zipFileBeingUploaded), unzippedFinalProjFolder);
 
-      File libFolder = new File((File) invocation.getArguments()[2], "lib");
+      File libFolder = new File(unzippedFinalProjFolder, "lib");
       // Let's check to make sure that file we removed is not included in the final zip
       // the uploadProject method should have noticed that the report mentioned a file was removed
-      // and re-zipped the folder
-      assertEquals(0, FileUtils.listFiles(libFolder, null, false).size());
+      // and re-zipped the folder. It's also possible that the zipping process removed the empty
+      // lib folder, so as long as it does not exist OR is empty we'll pass this test.
+      assertTrue(!libFolder.exists()
+          || FileUtils.listFiles(libFolder, null, false).size() == 0);
       return null;
-    }).when(this.projectStorageManager).uploadProject(any(), any(), any(), any());
+    }).when(this.projectStorageManager).uploadProject(any(), anyInt(), any(), any());
 
     this.project.setVersion(this.VERSION);
     this.azkabanProjectLoader
         .uploadProject(this.project, projectZipFile, "zip", uploader, null);
 
-    verify(this.projectStorageManager)
-        .uploadProject(this.project, this.VERSION + 1, projectZipFile, uploader);
-    verify(this.projectLoader).cleanOlderProjectVersion(this.project.getId(), this.VERSION - 3,
-        Arrays.asList(this.VERSION));
+    // Verify that the archiveUnthinner was called
+    verify(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
+  }
+
+  @Test
+  public void uploadProjectValidatorModifiedFileTHIN() throws Exception {
+    // NOTE!! This test assumes that the thin archive project folder structure defined in
+    // ThinArchiveTestUtils.makeSampleThinProjectDirAB() is not modified. If it is modified,
+    // this test will have to be updated.
+
+    final String writtenModifiedString = "HELLOEVERYONE";
+
+    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
+
+    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
+    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
+    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
+    Utils.zipFolderContent(thinZipFolder, projectZipFile);
+
+    final User uploader = new User("test_user");
+
+    // to test excluding running versions in args of cleanOlderProjectVersion
+    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
+    runningFlow.setVersion(this.VERSION);
+    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
+        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+
+    // When archiveUnthinner is called, modify a file in the folder
+    doAnswer((Answer<Map<String, ValidationReport>>) invocation -> {
+      File libFolder = new File((File) invocation.getArguments()[1], "lib");
+      File randomLib = FileUtils.listFiles(libFolder, null, false).iterator().next();
+
+      FileUtils.writeStringToFile(randomLib, writtenModifiedString);
+
+      ValidationReport r = new ValidationReport();
+      r.addModifiedFiles(new HashSet(Arrays.asList(randomLib)));
+
+      Map<String, ValidationReport> resultingReports = new HashMap();
+      resultingReports.put("somevalidator", r);
+      return resultingReports;
+    }).when(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
+
+    // When uploadProject is called, make sure it has the correctly modified zip being passed in
+    doAnswer((Answer) invocation -> {
+      File zipFileBeingUploaded = (File) invocation.getArguments()[2];
+      File unzippedFinalProjFolder = TEMP_DIR.newFolder("finalproj");
+      Utils.unzip(new ZipFile(zipFileBeingUploaded), unzippedFinalProjFolder);
+
+      File libFolder = new File(unzippedFinalProjFolder, "lib");
+      File randomLib = FileUtils.listFiles(libFolder, null, false).iterator().next();
+      // Let's check to make sure that file we modified is modified in the final zip
+      assertEquals(writtenModifiedString, FileUtils.readFileToString(randomLib));
+      return null;
+    }).when(this.projectStorageManager).uploadProject(any(), anyInt(), any(), any());
+
+    this.project.setVersion(this.VERSION);
+    this.azkabanProjectLoader
+        .uploadProject(this.project, projectZipFile, "zip", uploader, null);
 
     // Verify that the archiveUnthinner was called
     verify(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
