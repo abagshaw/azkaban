@@ -3,10 +3,13 @@ package azkaban.test.executions;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.FileValidationStatus;
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.io.FileUtils;
 import org.mockito.ArgumentMatcher;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -27,35 +30,25 @@ class DependencyMatcher implements ArgumentMatcher<DependencyFile> {
     }
   }
 }
-/*
-// Custom mockito argument matcher to help with matching Map<Dependency, FileValidationStatus>
-// with Map<DependencyFile, FileValidationStatus>
-class DependencyStatusMapMatcher implements ArgumentMatcher<Map<Dependency, FileValidationStatus>> {
-  private Map<Dependency, FileValidationStatus> expectedDepValidationStatuses;
-  public DependencyStatusMapMatcher(Map<Dependency, FileValidationStatus> expected) {
-    this.expectedDepValidationStatuses = expected;
-  }
-
-  @Override
-  public boolean matches(Map<Dependency, FileValidationStatus> depFile) {
-    try {
-      for (Dependency d : depFile.keySet()) {
-        // d might actually be a DependencyFile so we make a new Dependency to ensure the Map.get() succeeds;
-        if (expectedDepValidationStatuses.get(new Dependency(d)) != depFile.get(d)) {
-          return false;
-        }
-      }
-      return true;
-    } catch (Exception e) {
-      return false;
-    }
-  }
-}*/
 
 
 public class ThinArchiveTestUtils {
   public static DependencyFile depEq(Dependency dep) {
     return argThat(new DependencyMatcher(dep));
+  }
+
+  public static void makeSampleThinProjectDirAB(File projectFolder) throws IOException {
+    // Create test project directory
+    // ../
+    // ../lib/some-snapshot.jar
+    // ../app-meta/startup-dependencies.json
+    File libFolder = new File(projectFolder, "lib");
+    libFolder.mkdirs();
+    File appMetaFolder = new File(projectFolder, "app-meta");
+    libFolder.mkdirs();
+    FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
+    FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
+        ThinArchiveTestUtils.getRawJSONDepsAB());
   }
 
   public static Set getDepSetA() { return new HashSet(Arrays.asList(getDepA())); }

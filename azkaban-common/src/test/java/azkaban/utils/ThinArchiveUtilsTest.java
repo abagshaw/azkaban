@@ -49,10 +49,11 @@ public class ThinArchiveUtilsTest {
   public void testGetDependencyFile() throws Exception {
     File someFolder = TEMP_DIR.newFolder("someproject");
 
-    File dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestUtils.getDepA());
-    File expectedDependencyFile = new File(someFolder, ThinArchiveTestUtils.getDepA().getDestination()
+    DependencyFile dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestUtils.getDepA());
+    DependencyFile expectedDependencyFile = new DependencyFile(
+        new File(someFolder, ThinArchiveTestUtils.getDepA().getDestination()
         + File.separator
-        + ThinArchiveTestUtils.getDepA().getFileName());
+        + ThinArchiveTestUtils.getDepA().getFileName()), ThinArchiveTestUtils.getDepA());
 
     assertEquals(expectedDependencyFile, dependencyFile);
   }

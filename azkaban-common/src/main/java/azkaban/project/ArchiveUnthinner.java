@@ -4,6 +4,7 @@ import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
+import azkaban.spi.DownloadOrigin;
 import azkaban.spi.FileStatus;
 import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
@@ -186,7 +187,7 @@ public class ArchiveUnthinner {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
       DependencyFile downloadedDependency = new DependencyFile(downloadedJar, d);
       try {
-        this.dependencyDownloader.downloadDependency(downloadedDependency);
+        this.dependencyDownloader.downloadDependency(downloadedDependency, DownloadOrigin.REMOTE);
       } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
       }

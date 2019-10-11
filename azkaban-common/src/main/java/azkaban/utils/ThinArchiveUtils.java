@@ -20,8 +20,8 @@ public class ThinArchiveUtils {
     return new File(projectFolder.getPath() + "/app-meta/startup-dependencies.json");
   }
 
-  public static File getDependencyFile(final File projectFolder, final Dependency d) {
-    return new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
+  public static DependencyFile getDependencyFile(final File projectFolder, final Dependency d) {
+    return new DependencyFile(new File(projectFolder, d.getDestination() + File.separator + d.getFileName()), d);
   }
 
   public static Set<Dependency> parseStartupDependencies(final File f) throws IOException {
@@ -61,7 +61,7 @@ public class ThinArchiveUtils {
 
       Map<String, Dependency> pathToDep = new HashMap<>();
       for (Dependency dep : startupDeps) {
-        pathToDep.put(getDependencyFile(projectFolder, dep).getCanonicalPath(), dep);
+        pathToDep.put(getDependencyFile(projectFolder, dep).getFile().getCanonicalPath(), dep);
       }
 
       List<String> finalDependencies = new ArrayList<>();

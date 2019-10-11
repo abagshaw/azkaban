@@ -230,8 +230,8 @@ public class FlowRunnerManager implements EventListener,
     }
 
     // Create a flow preparer
-    this.flowPreparer = new FlowPreparer(projectStorageManager, this.executionDirectory,
-        this.projectDirectory, cleaner, this.execMetrics.getProjectCacheHitRatio(), this.storage);
+    this.flowPreparer = new FlowPreparer(projectStorageManager, this.storage, this.projectDirectory, cleaner,
+        this.execMetrics.getProjectCacheHitRatio(), this.executionDirectory);
 
     this.execMetrics.addFlowRunnerManagerMetrics(this);
 

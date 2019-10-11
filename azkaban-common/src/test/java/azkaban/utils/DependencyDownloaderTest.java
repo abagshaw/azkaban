@@ -1,8 +1,12 @@
 package azkaban.utils;
 
 import azkaban.spi.DependencyFile;
+import azkaban.spi.DownloadOrigin;
+import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestUtils;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.FileUtils;
@@ -19,6 +23,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import static azkaban.Constants.ConfigurationKeys.*;
+import static org.mockito.Mockito.*;
 
 
 @RunWith(PowerMockRunner.class)
@@ -31,20 +36,22 @@ public class DependencyDownloaderTest {
   public URL depAFullUrl;
 
   public DependencyDownloader dependencyDownloader;
+  public Storage storage;
   public Props props;
 
   @Before
   public void setup() throws Exception {
     this.props = new Props();
-    this.props.put(AZKABAN_STARTUP_DEPENDENCIES_DOWNLOAD_BASE_URL, DOWNLOAD_BASE_URL);
+    this.props.put(AZKABAN_STARTUP_DEPENDENCIES_REMOTE_DOWNLOAD_BASE_URL, DOWNLOAD_BASE_URL);
+    this.storage = mock(Storage.class);
 
     depAFullUrl = new URL(new URL(DOWNLOAD_BASE_URL), ThinArchiveTestUtils.getDepAPath());
 
-    dependencyDownloader = new DependencyDownloader(this.props);
+    dependencyDownloader = new DependencyDownloader(this.props, this.storage);
   }
 
   @Test
-  public void testDownloadDependencySuccess() throws Exception {
+  public void testDownloadDependencySuccessREMOTE() throws Exception {
     PowerMockito.mockStatic(FileDownloaderUtils.class);
 
     File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
@@ -57,14 +64,31 @@ public class DependencyDownloaderTest {
       return null;
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.eq(destinationFile), Mockito.any(URL.class));
 
-    this.dependencyDownloader.downloadDependency(dep);
+    this.dependencyDownloader.downloadDependency(dep, DownloadOrigin.REMOTE);
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(1));
     FileDownloaderUtils.downloadToFile(destinationFile, depAFullUrl);
   }
 
   @Test
-  public void testDownloadDependencyHashInvalidOneRetry() throws Exception {
+  public void testDownloadDependencySuccessSTORAGE() throws Exception {
+    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
+    DependencyFile dep = new DependencyFile(destinationFile, ThinArchiveTestUtils.getDepA());
+
+    // When FileDownloaderUtils.downloadToFile() is called, write the content to the file as if it was downloaded
+    doAnswer((Answer<InputStream>) invocation -> {
+      File tmpFile = TEMP_DIR.newFile("tmpdepa.jar");
+      FileUtils.writeStringToFile(tmpFile, ThinArchiveTestUtils.getDepAContent());
+      return new FileInputStream(tmpFile);
+    }).when(this.storage).getDependency(dep);
+
+    this.dependencyDownloader.downloadDependency(dep, DownloadOrigin.STORAGE);
+
+    verify(this.storage).getDependency(dep);
+  }
+
+  @Test
+  public void testDownloadDependencyHashInvalidOneRetryREMOTE() throws Exception {
     final AtomicInteger countCall = new AtomicInteger();
     PowerMockito.mockStatic(FileDownloaderUtils.class);
 
@@ -84,14 +108,14 @@ public class DependencyDownloaderTest {
       return null;
     }).when(FileDownloaderUtils.class, "downloadToFile", Mockito.eq(destinationFile), Mockito.any(URL.class));
 
-    this.dependencyDownloader.downloadDependency(dep);
+    this.dependencyDownloader.downloadDependency(dep, DownloadOrigin.REMOTE);
 
     PowerMockito.verifyStatic(FileDownloaderUtils.class, Mockito.times(2));
     FileDownloaderUtils.downloadToFile(destinationFile, depAFullUrl);
   }
 
   @Test
-  public void testDownloadDependencyHashInvalidRetryExceededFail() throws Exception {
+  public void testDownloadDependencyHashInvalidRetryExceededFailREMOTE() throws Exception {
     PowerMockito.mockStatic(FileDownloaderUtils.class);
 
     File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
@@ -106,7 +130,7 @@ public class DependencyDownloaderTest {
 
     boolean hitException = false;
     try {
-      this.dependencyDownloader.downloadDependency(dep);
+      this.dependencyDownloader.downloadDependency(dep, DownloadOrigin.REMOTE);
     } catch (HashNotMatchException e) {
       // Good! We wanted this exception.
       hitException = true;

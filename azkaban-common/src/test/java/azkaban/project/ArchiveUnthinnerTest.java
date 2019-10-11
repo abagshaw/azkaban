@@ -21,6 +21,7 @@ import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
+import azkaban.spi.DownloadOrigin;
 import azkaban.spi.FileStatus;
 import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
@@ -79,13 +80,7 @@ public class ArchiveUnthinnerTest {
     // ../lib/some-snapshot.jar
     // ../app-meta/startup-dependencies.json
     projectFolder = TEMP_DIR.newFolder("testproj");
-    File libFolder = new File(projectFolder, "lib");
-    libFolder.mkdirs();
-    File appMetaFolder = new File(projectFolder, "app-meta");
-    libFolder.mkdirs();
-    FileUtils.writeStringToFile(new File(libFolder, "some-snapshot.jar"), "oldcontent");
-    FileUtils.writeStringToFile(new File(appMetaFolder, "startup-dependencies.json"),
-        ThinArchiveTestUtils.getRawJSONDepsAB());
+    ThinArchiveTestUtils.makeSampleThinProjectDirAB(projectFolder);
 
     // Setup sample dependencies
     depA = ThinArchiveTestUtils.getDepA();
@@ -105,8 +100,7 @@ public class ArchiveUnthinnerTest {
 
       FileUtils.writeStringToFile(destDep.getFile(), contentToWrite);
       return null;
-    }).when(this.dependencyDownloader)
-        .downloadDependency(any(DependencyFile.class));
+    }).when(this.dependencyDownloader).downloadDependency(any(DependencyFile.class), eq(DownloadOrigin.REMOTE));
 
     // When the unthinner attempts to get a validationKey for the project, return our sample one.
     when(this.validatorUtils.getCacheKey(eq(this.project), eq(this.projectFolder), any()))
