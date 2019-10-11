@@ -96,12 +96,17 @@ public class ThinArchiveUtils {
 
   public static void validateDependencyHash(final DependencyFile f)
       throws HashNotMatchException {
+    validateDependencyHash(f.getFile(), f);
+  }
+
+  public static void validateDependencyHash(final File f, final Dependency d)
+      throws HashNotMatchException {
     try {
-      final byte[] actualFileHash = HashUtils.SHA1.getHash(f.getFile());
-      if (!HashUtils.isSameHash(f.getSHA1(), actualFileHash)) {
+      final byte[] actualFileHash = HashUtils.SHA1.getHash(f);
+      if (!HashUtils.isSameHash(d.getSHA1(), actualFileHash)) {
         throw new HashNotMatchException(String.format("SHA1 Dependency hash check failed. File: %s Expected: %s Actual: %s",
-            f.getFileName(),
-            f.getSHA1(),
+            d.getFileName(),
+            d.getSHA1(),
             HashUtils.bytesHashToString(actualFileHash)));
       }
     } catch (DecoderException e) {

@@ -43,6 +43,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -240,7 +241,7 @@ class FlowPreparer {
    * @throws IOException if downloading JARs or reading startup-dependencies.json fails
    */
   private void downloadAllDependencies(final File folder, final File startupDependencies) throws IOException {
-    final List<Dependency> dependencies = parseStartupDependencies(startupDependencies);
+    final Set<Dependency> dependencies = parseStartupDependencies(startupDependencies);
 
     // Download each of the dependencies from storage
     LOGGER.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
@@ -264,10 +265,10 @@ class FlowPreparer {
       /* Validate hash */
       validateDependencyHash(file, dependencyDetails);
     } catch (FileNotFoundException e) {
-      LOGGER.error("Could not find startup dependency {} Try re-uploading project.", dependencyDetails.getFile(), e);
+      LOGGER.error("Could not find startup dependency {} Try re-uploading project.", dependencyDetails.getFileName(), e);
       throw e;
     } catch (HashNotMatchException e) {
-      LOGGER.error("Hash validation failed when downloading startup dependency {}", dependencyDetails.getFile(), e);
+      LOGGER.error("Hash validation failed when downloading startup dependency {}", dependencyDetails.getFileName(), e);
       throw new IOException(e);
     }
   }
