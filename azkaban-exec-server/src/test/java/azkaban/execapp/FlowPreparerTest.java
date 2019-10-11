@@ -34,7 +34,7 @@ import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
 import azkaban.spi.Storage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.utils.FileIOUtils;
 import java.io.File;
 import java.nio.file.Files;
@@ -62,7 +62,7 @@ public class FlowPreparerTest {
   private FlowPreparer instance;
   private Storage storage;
 
-  private StorageManager createMockStorageManager() {
+  private ProjectStorageManager createMockStorageManager() {
     final ClassLoader classLoader = getClass().getClassLoader();
     final File file = new File(classLoader.getResource(SAMPLE_FLOW_01 + ".zip").getFile());
 
@@ -70,9 +70,9 @@ public class FlowPreparerTest {
     when(projectFileHandler.getFileType()).thenReturn("zip");
     when(projectFileHandler.getLocalFile()).thenReturn(file);
 
-    final StorageManager storageManager = mock(StorageManager.class);
-    when(storageManager.getProjectFile(anyInt(), anyInt())).thenReturn(projectFileHandler);
-    return storageManager;
+    final ProjectStorageManager projectStorageManager = mock(ProjectStorageManager.class);
+    when(projectStorageManager.getProjectFile(anyInt(), anyInt())).thenReturn(projectFileHandler);
+    return projectStorageManager;
   }
 
   private ExecutableFlow mockExecutableFlow(final int execId, final int projectId,
@@ -190,4 +190,13 @@ public class FlowPreparerTest {
     assertTrue(new File(execDir, SAMPLE_FLOW_01).exists());
   }
 
+  @Test
+  public void testDownloadAndUnzipProjectFAT() {
+
+  }
+
+  @Test
+  public void testDownloadAndUnzipProjectTHIN() {
+    ProjectDirectoryMetadata
+  }
 }

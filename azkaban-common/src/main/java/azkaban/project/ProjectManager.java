@@ -23,9 +23,7 @@ import azkaban.executor.ExecutorManagerException;
 import azkaban.flow.Flow;
 import azkaban.project.ProjectLogEvent.EventType;
 import azkaban.project.validator.ValidationReport;
-import azkaban.project.validator.ValidatorConfigs;
-import azkaban.project.validator.XmlValidatorManager;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.user.Permission;
 import azkaban.user.Permission.Type;
 import azkaban.user.User;
@@ -68,7 +66,7 @@ public class ProjectManager {
   @Inject
   public ProjectManager(final AzkabanProjectLoader azkabanProjectLoader,
       final ProjectLoader loader,
-      final StorageManager storageManager,
+      final ProjectStorageManager projectStorageManager,
       final Props props) {
     this.projectLoader = requireNonNull(loader);
     this.props = requireNonNull(props);

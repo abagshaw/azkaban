@@ -45,7 +45,7 @@ import azkaban.sla.SlaOption;
 import azkaban.spi.AzkabanEventReporter;
 import azkaban.spi.EventType;
 import azkaban.spi.Storage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.FileIOUtils.JobMetaData;
 import azkaban.utils.FileIOUtils.LogData;
@@ -168,7 +168,7 @@ public class FlowRunnerManager implements EventListener,
   public FlowRunnerManager(final Props props,
       final ExecutorLoader executorLoader,
       final ProjectLoader projectLoader,
-      final StorageManager storageManager,
+      final ProjectStorageManager projectStorageManager,
       final TriggerManager triggerManager,
       final FlowRampManager flowRampManager,
       final AlerterHolder alerterHolder,
@@ -230,7 +230,7 @@ public class FlowRunnerManager implements EventListener,
     }
 
     // Create a flow preparer
-    this.flowPreparer = new FlowPreparer(storageManager, this.executionDirectory,
+    this.flowPreparer = new FlowPreparer(projectStorageManager, this.executionDirectory,
         this.projectDirectory, cleaner, this.execMetrics.getProjectCacheHitRatio(), this.storage);
 
     this.execMetrics.addFlowRunnerManagerMetrics(this);

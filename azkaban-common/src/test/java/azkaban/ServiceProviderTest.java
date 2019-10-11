@@ -27,7 +27,7 @@ import azkaban.spi.Storage;
 import azkaban.storage.DatabaseStorage;
 import azkaban.storage.HdfsStorage;
 import azkaban.storage.LocalStorage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.utils.Props;
 import com.google.inject.ConfigurationException;
 import com.google.inject.Guice;
@@ -73,7 +73,7 @@ public class ServiceProviderTest {
     SERVICE_PROVIDER.setInjector(injector);
 
     assertThat(injector.getInstance(JdbcProjectImpl.class)).isNotNull();
-    assertThat(injector.getInstance(StorageManager.class)).isNotNull();
+    assertThat(injector.getInstance(ProjectStorageManager.class)).isNotNull();
     assertThat(injector.getInstance(DatabaseStorage.class)).isNotNull();
     assertThat(injector.getInstance(LocalStorage.class)).isNotNull();
     assertThatThrownBy(

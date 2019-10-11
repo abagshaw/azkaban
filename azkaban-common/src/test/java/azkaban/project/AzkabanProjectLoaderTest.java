@@ -34,7 +34,7 @@ import azkaban.flow.Flow;
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Storage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.test.executions.ExecutionsTestUtil;
 import azkaban.user.User;
 import azkaban.utils.Pair;
@@ -65,7 +65,7 @@ public class AzkabanProjectLoaderTest {
   private final Project project = new Project(this.ID, "project1");
 
   private AzkabanProjectLoader azkabanProjectLoader;
-  private StorageManager storageManager;
+  private ProjectStorageManager projectStorageManager;
   private ProjectLoader projectLoader;
   private ExecutorLoader executorLoader;
   private DatabaseOperator dbOperator;
@@ -78,7 +78,7 @@ public class AzkabanProjectLoaderTest {
     final Props props = new Props();
     props.put(PROJECT_TEMP_DIR, this.TEMP_DIR.getRoot().getAbsolutePath());
 
-    this.storageManager = mock(StorageManager.class);
+    this.projectStorageManager = mock(ProjectStorageManager.class);
     this.projectLoader = mock(ProjectLoader.class);
     this.executorLoader = mock(ExecutorLoader.class);
     this.dbOperator = mock(DatabaseOperator.class);
@@ -87,7 +87,7 @@ public class AzkabanProjectLoaderTest {
     this.validatorUtils = mock(ValidatorUtils.class);
 
     this.azkabanProjectLoader = new AzkabanProjectLoader(props, this.projectLoader,
-        this.storageManager, new FlowLoaderFactory(props), this.executorLoader, this.dbOperator, this.storage,
+        this.projectStorageManager, new FlowLoaderFactory(props), this.executorLoader, this.dbOperator, this.storage,
         this.archiveUnthinner, this.validatorUtils);
   }
 
@@ -110,7 +110,7 @@ public class AzkabanProjectLoaderTest {
     checkValidationReport(this.azkabanProjectLoader
         .uploadProject(this.project, projectZipFile, "zip", uploader, null));
 
-    verify(this.storageManager)
+    verify(this.projectStorageManager)
         .uploadProject(this.project, this.VERSION + 1, projectZipFile, uploader);
     verify(this.projectLoader).cleanOlderProjectVersion(this.project.getId(), this.VERSION - 3,
         Arrays.asList(this.VERSION));
@@ -124,7 +124,7 @@ public class AzkabanProjectLoaderTest {
     this.azkabanProjectLoader.getProjectFile(this.project, -1);
 
     verify(this.projectLoader).getLatestProjectVersion(this.project);
-    verify(this.storageManager).getProjectFile(this.ID, this.VERSION);
+    verify(this.projectStorageManager).getProjectFile(this.ID, this.VERSION);
   }
 
   @Test
@@ -140,7 +140,7 @@ public class AzkabanProjectLoaderTest {
     checkValidationReport(this.azkabanProjectLoader
         .uploadProject(this.project, projectZipFile, "zip", uploader, null));
 
-    verify(this.storageManager)
+    verify(this.projectStorageManager)
         .uploadProject(this.project, this.VERSION + 1, projectZipFile, uploader);
     verify(this.projectLoader)
         .uploadFlowFile(eq(this.ID), eq(this.VERSION + 1), any(File.class), eq(flowVersion + 1));

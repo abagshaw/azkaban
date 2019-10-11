@@ -43,13 +43,13 @@ import org.apache.log4j.Logger;
 
 
 /**
- * StorageManager manages and coordinates all interactions with the Storage layer. This also
+ * StorageManager manages and coordinates all project related interactions with the Storage layer. This also
  * includes bookkeeping like updating DB with the new versionm, etc
  */
 @Singleton
-public class StorageManager {
+public class ProjectStorageManager {
 
-  private static final Logger log = Logger.getLogger(StorageManager.class);
+  private static final Logger log = Logger.getLogger(ProjectStorageManager.class);
 
   private final StorageCleaner storageCleaner;
   private final Storage storage;
@@ -57,7 +57,7 @@ public class StorageManager {
   private final File tempDir;
 
   @Inject
-  public StorageManager(final Props props, final Storage storage,
+  public ProjectStorageManager(final Props props, final Storage storage,
       final ProjectLoader projectLoader,
       final StorageCleaner storageCleaner) {
     this.tempDir = new File(props.getString("project.temp.dir", "temp"));

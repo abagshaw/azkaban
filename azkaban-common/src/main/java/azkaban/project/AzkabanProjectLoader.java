@@ -17,7 +17,6 @@
 
 package azkaban.project;
 
-import static azkaban.Constants.ConfigurationKeys.*;
 import static azkaban.utils.ThinArchiveUtils.*;
 import static java.util.Objects.requireNonNull;
 
@@ -35,7 +34,7 @@ import azkaban.project.ProjectLogEvent.EventType;
 import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Storage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.user.User;
 import azkaban.utils.Pair;
 import azkaban.utils.Props;
@@ -65,7 +64,7 @@ class AzkabanProjectLoader {
   private final Props props;
 
   private final ProjectLoader projectLoader;
-  private final StorageManager storageManager;
+  private final ProjectStorageManager projectStorageManager;
   private final FlowLoaderFactory flowLoaderFactory;
   private final DatabaseOperator dbOperator;
   private final ArchiveUnthinner archiveUnthinner;
@@ -77,13 +76,13 @@ class AzkabanProjectLoader {
 
   @Inject
   AzkabanProjectLoader(final Props props, final ProjectLoader projectLoader,
-      final StorageManager storageManager, final FlowLoaderFactory flowLoaderFactory,
+      final ProjectStorageManager projectStorageManager, final FlowLoaderFactory flowLoaderFactory,
       final ExecutorLoader executorLoader, final DatabaseOperator databaseOperator,
       final Storage storage, final ArchiveUnthinner archiveUnthinner,
       final ValidatorUtils validatorUtils) {
     this.props = requireNonNull(props, "Props is null");
     this.projectLoader = requireNonNull(projectLoader, "project Loader is null");
-    this.storageManager = requireNonNull(storageManager, "Storage Manager is null");
+    this.projectStorageManager = requireNonNull(projectStorageManager, "Storage Manager is null");
     this.flowLoaderFactory = requireNonNull(flowLoaderFactory, "Flow Loader Factory is null");
 
     this.dbOperator = databaseOperator;
@@ -204,7 +203,7 @@ class AzkabanProjectLoader {
         flow.setVersion(newProjectVersion);
       }
 
-      this.storageManager.uploadProject(project, newProjectVersion, archive, uploader);
+      this.projectStorageManager.uploadProject(project, newProjectVersion, archive, uploader);
 
       log.info("Uploading flow to db for project " + archive.getName());
       this.projectLoader.uploadFlows(project, newProjectVersion, flows.values());
@@ -259,7 +258,7 @@ class AzkabanProjectLoader {
     this.projectLoader.cleanOlderProjectVersion(project.getId(),
         project.getVersion() - this.projectVersionRetention, versionsWithUnfinishedExecutions);
     // Clean up storage
-    this.storageManager.cleanupProjectArtifacts(project.getId(), versionsWithUnfinishedExecutions);
+    this.projectStorageManager.cleanupProjectArtifacts(project.getId(), versionsWithUnfinishedExecutions);
   }
 
   private File unzipFile(final File archiveFile) throws IOException {
@@ -276,7 +275,7 @@ class AzkabanProjectLoader {
     if (version == -1) {
       version = this.projectLoader.getLatestProjectVersion(project);
     }
-    return this.storageManager.getProjectFile(project.getId(), version);
+    return this.projectStorageManager.getProjectFile(project.getId(), version);
   }
 
 }

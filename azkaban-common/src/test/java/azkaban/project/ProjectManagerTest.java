@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 import azkaban.db.DatabaseOperator;
 import azkaban.executor.ExecutorLoader;
 import azkaban.spi.Storage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.user.User;
 import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
@@ -37,7 +37,7 @@ public class ProjectManagerTest {
   private ProjectManager manager;
   private AzkabanProjectLoader azkabanProjectLoader;
   private ProjectLoader projectLoader;
-  private StorageManager storageManager;
+  private ProjectStorageManager projectStorageManager;
   private Props props;
   private ExecutorLoader executorLoader;
   private DatabaseOperator dbOperator;
@@ -48,7 +48,7 @@ public class ProjectManagerTest {
   @Before
   public void setUp() throws Exception {
     this.props = new Props();
-    this.storageManager = mock(StorageManager.class);
+    this.projectStorageManager = mock(ProjectStorageManager.class);
     this.projectLoader = mock(ProjectLoader.class);
     this.executorLoader = mock(ExecutorLoader.class);
     this.dbOperator = mock(DatabaseOperator.class);
@@ -57,10 +57,10 @@ public class ProjectManagerTest {
     this.validatorUtils = mock(ValidatorUtils.class);
 
     this.azkabanProjectLoader = new AzkabanProjectLoader(this.props, this.projectLoader,
-        this.storageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator, storage, this.archiveUnthinner,
+        this.projectStorageManager, mock(FlowLoaderFactory.class), executorLoader, dbOperator, storage, this.archiveUnthinner,
         this.validatorUtils);
 
-    this.manager = new ProjectManager(this.azkabanProjectLoader, this.projectLoader, this.storageManager, this.props);
+    this.manager = new ProjectManager(this.azkabanProjectLoader, this.projectLoader, this.projectStorageManager, this.props);
   }
 
   @Test

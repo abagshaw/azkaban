@@ -26,7 +26,7 @@ import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
 import azkaban.spi.Dependency;
 import azkaban.spi.Storage;
-import azkaban.storage.StorageManager;
+import azkaban.storage.ProjectStorageManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.HashNotMatchException;
 import azkaban.utils.Utils;
@@ -41,7 +41,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.zip.ZipFile;
@@ -62,17 +61,17 @@ class FlowPreparer {
   private final File executionsDir;
   // TODO spyne: move to config class
   private final File projectCacheDir;
-  private final StorageManager storageManager;
+  private final ProjectStorageManager projectStorageManager;
   // Null if cache clean-up is disabled
   private final Optional<ProjectCacheCleaner> projectCacheCleaner;
   private final ProjectCacheHitRatio projectCacheHitRatio;
   private final Storage storage;
 
-  FlowPreparer(final StorageManager storageManager, final File executionsDir,
+  FlowPreparer(final ProjectStorageManager projectStorageManager, final File executionsDir,
       final File projectsDir, final ProjectCacheCleaner cleaner,
       final ProjectCacheHitRatio projectCacheHitRatio,
       final Storage storage) {
-    Preconditions.checkNotNull(storageManager);
+    Preconditions.checkNotNull(projectStorageManager);
     Preconditions.checkNotNull(executionsDir);
     Preconditions.checkNotNull(projectsDir);
     Preconditions.checkNotNull(projectCacheHitRatio);
@@ -80,7 +79,7 @@ class FlowPreparer {
     Preconditions.checkArgument(projectsDir.exists());
     Preconditions.checkArgument(executionsDir.exists());
 
-    this.storageManager = storageManager;
+    this.projectStorageManager = projectStorageManager;
     this.executionsDir = executionsDir;
     this.projectCacheDir = projectsDir;
     this.projectCacheCleaner = Optional.ofNullable(cleaner);
@@ -212,9 +211,10 @@ class FlowPreparer {
     return tempDir;
   }
 
-  private void downloadAndUnzipProject(final ProjectDirectoryMetadata projectDirectoryMetadata, final File dest)
+  @VisibleForTesting
+  void downloadAndUnzipProject(final ProjectDirectoryMetadata projectDirectoryMetadata, final File dest)
       throws IOException {
-    final ProjectFileHandler projectFileHandler = requireNonNull(this.storageManager
+    final ProjectFileHandler projectFileHandler = requireNonNull(this.projectStorageManager
         .getProjectFile(projectDirectoryMetadata.getProjectId(), projectDirectoryMetadata.getVersion()));
     try {
       checkState("zip".equalsIgnoreCase(projectFileHandler.getFileType()));
