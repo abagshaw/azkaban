@@ -20,11 +20,10 @@ package azkaban.project;
 import static azkaban.Constants.ConfigurationKeys.PROJECT_TEMP_DIR;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import azkaban.db.DatabaseOperator;
 import azkaban.executor.ExecutableFlow;
@@ -36,19 +35,28 @@ import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Storage;
 import azkaban.storage.ProjectStorageManager;
 import azkaban.test.executions.ExecutionsTestUtil;
+import azkaban.test.executions.ThinArchiveTestUtils;
 import azkaban.user.User;
 import azkaban.utils.Pair;
 import azkaban.utils.Props;
+import azkaban.utils.ThinArchiveUtils;
+import azkaban.utils.Utils;
 import azkaban.utils.ValidatorUtils;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.zip.ZipFile;
+import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.stubbing.Answer;
+
 
 public class AzkabanProjectLoaderTest {
 
@@ -92,7 +100,7 @@ public class AzkabanProjectLoaderTest {
   }
 
   @Test
-  public void uploadProject() throws ExecutorManagerException {
+  public void uploadProjectFAT() throws ExecutorManagerException {
     when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
 
     final URL resource = requireNonNull(
@@ -114,6 +122,110 @@ public class AzkabanProjectLoaderTest {
         .uploadProject(this.project, this.VERSION + 1, projectZipFile, uploader);
     verify(this.projectLoader).cleanOlderProjectVersion(this.project.getId(), this.VERSION - 3,
         Arrays.asList(this.VERSION));
+
+    // Verify that the archiveUnthinner was never called
+    verify(this.archiveUnthinner, never()).validateProjectAndPersistDependencies(any(), any(), any(), any());
+  }
+
+  @Test
+  public void uploadProjectValidatorRemovedFileTHIN() throws Exception {
+    // NOTE!! This test assumes that the thin archive project folder structure defined in
+    // ThinArchiveTestUtils.makeSampleThinProjectDirAB() is not modified. If it is modified,
+    // this test will have to be updated.
+
+    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
+
+    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
+    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
+    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
+    Utils.zipFolderContent(thinZipFolder, projectZipFile);
+
+    final User uploader = new User("test_user");
+
+    // to test excluding running versions in args of cleanOlderProjectVersion
+    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
+    runningFlow.setVersion(this.VERSION);
+    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
+        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+
+    // When archiveUnthinner is called, remove a file from the folder
+    doAnswer((Answer<Map<String, ValidationReport>>) invocation -> {
+      File libFolder = new File((File) invocation.getArguments()[1], "lib");
+      File randomLib = FileUtils.listFiles(libFolder, null, false).iterator().next();
+
+      randomLib.delete();
+
+      ValidationReport r = new ValidationReport();
+      r.addRemovedFiles(new HashSet(Arrays.asList(randomLib)));
+
+      Map<String, ValidationReport> resultingReports = new HashMap();
+      resultingReports.put("somevalidator", r);
+      return resultingReports;
+    }).when(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
+
+    // When uploadProject is called, make sure it has the correctly modified zip being passed in
+    doAnswer((Answer) invocation -> {
+      File zipFileBeingUploaded = (File) invocation.getArguments()[2];
+      File unzippedFinalProjFolder = TEMP_DIR.newFolder("finalproj");
+      Utils.unzip(new ZipFile(zipFileBeingUploaded), unzippedFinalProjFolder);
+
+      File libFolder = new File((File) invocation.getArguments()[2], "lib");
+      // Let's check to make sure that file we removed is not included in the final zip
+      // the uploadProject method should have noticed that the report mentioned a file was removed
+      // and re-zipped the folder
+      assertEquals(0, FileUtils.listFiles(libFolder, null, false).size());
+      return null;
+    }).when(this.projectStorageManager).uploadProject(any(), any(), any(), any());
+
+    this.project.setVersion(this.VERSION);
+    this.azkabanProjectLoader
+        .uploadProject(this.project, projectZipFile, "zip", uploader, null);
+
+    verify(this.projectStorageManager)
+        .uploadProject(this.project, this.VERSION + 1, projectZipFile, uploader);
+    verify(this.projectLoader).cleanOlderProjectVersion(this.project.getId(), this.VERSION - 3,
+        Arrays.asList(this.VERSION));
+
+    // Verify that the archiveUnthinner was called
+    verify(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
+  }
+
+  @Test
+  public void uploadProjectTHIN() throws Exception {
+    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
+
+    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
+    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
+    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
+    Utils.zipFolderContent(thinZipFolder, projectZipFile);
+
+    final User uploader = new User("test_user");
+
+    // to test excluding running versions in args of cleanOlderProjectVersion
+    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
+    runningFlow.setVersion(this.VERSION);
+    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
+        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+
+    // When archiveUnthinner is called, ensure it is called with the correct params
+    doAnswer((Answer<Map<String, ValidationReport>>) invocation -> {
+      File projectFolder = (File) invocation.getArguments()[1];
+      File startupDependenciesFile = (File) invocation.getArguments()[2];
+      assertEquals(ThinArchiveUtils.getStartupDependenciesFile(projectFolder), startupDependenciesFile);
+      return new HashMap();
+    }).when(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
+
+    this.project.setVersion(this.VERSION);
+    checkValidationReport(this.azkabanProjectLoader
+        .uploadProject(this.project, projectZipFile, "zip", uploader, null));
+
+    verify(this.projectStorageManager)
+        .uploadProject(this.project, this.VERSION + 1, projectZipFile, uploader);
+    verify(this.projectLoader).cleanOlderProjectVersion(this.project.getId(), this.VERSION - 3,
+        Arrays.asList(this.VERSION));
+
+    // Verify that the archiveUnthinner was called
+    verify(this.archiveUnthinner).validateProjectAndPersistDependencies(any(), any(), any(), any());
   }
 
   @Test
