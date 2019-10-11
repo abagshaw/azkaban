@@ -354,6 +354,49 @@ public class ArchiveUnthinnerTest {
   }
 
   @Test
+  public void testUnsuccessfulPersist() throws Exception {
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
+        .thenReturn(sampleValidationStatuses);
+
+    // When the unthinner attempts to validate the project, return an empty map (indicating that the
+    // validator found no errors and made no changes to the project)
+    when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
+        .thenReturn(new HashMap<>());
+
+    // Indicate ONLY depA persisted successfully, depB may still be OPEN
+    when(this.storage.putDependency(depEq(depA))).thenReturn(FileStatus.CLOSED);
+    when(this.storage.putDependency(depEq(depB))).thenReturn(FileStatus.OPEN);
+
+    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    Map<String, ValidationReport> result = this.archiveUnthinner
+        .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
+            null);
+
+    // Verify that ValidationReport is as expected (empty)
+    assertEquals(result, new HashMap<>());
+
+    // Verify that both dependencies were ATTEMPTED to be persisted to storage
+    verify(this.storage).putDependency(depEq(depA));
+    verify(this.storage).putDependency(depEq(depB));
+
+    // Verify that ONLY depA was added to the DB as VALID
+    Map<Dependency, FileValidationStatus> expectedStatuses = new HashMap();
+    expectedStatuses.put(depA, FileValidationStatus.VALID);
+    verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
+
+    // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
+    assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
+
+    // Verify that the startup-dependencies.json file is NOT modified
+    String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepsAB(), finalJSON, false);
+  }
+
+  @Test
   public void testReportWithError() throws Exception {
     // Indicate that the both dependencies are NEW, forcing them to be downloaded
     Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();

@@ -179,7 +179,7 @@ public class HdfsStorageTest {
     // But uh oh....plot twist! When the method attempts to write the file, we throw an exception
     // indicating it DOES actually exist. This could happen if another process began writing to the file
     // AFTER we checked isFileClosed.
-    doThrow(new FileAlreadyExistsException("Uh oh :("))
+    doThrow(new org.apache.hadoop.fs.FileAlreadyExistsException("Uh oh :("))
         .when(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
 
     DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
