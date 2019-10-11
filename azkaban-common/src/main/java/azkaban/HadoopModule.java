@@ -82,16 +82,8 @@ public class HadoopModule extends AbstractModule{
   @Inject
   @Provides
   @Singleton
-  public DistributedFileSystem createHadoopDistributedFileSystem(final FileSystem hdfs, final HdfsAuth auth) {
-    try {
-      auth.authorize();
-      DistributedFileSystem dfs = new DistributedFileSystem();
-      dfs.initialize(hdfs.getUri(), hdfs.getConf());
-      return dfs;
-    } catch (final IOException e) {
-      log.error("Unable to initialize HDFS DistributedFileSystem", e);
-      throw new AzkabanException(e);
-    }
+  public DistributedFileSystem createHadoopDistributedFileSystem() {
+    return new DistributedFileSystem();
   }
 
   @Override

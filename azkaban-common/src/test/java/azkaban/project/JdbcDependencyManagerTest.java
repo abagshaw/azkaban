@@ -73,7 +73,7 @@ public class JdbcDependencyManagerTest {
     };
 
     final AtomicInteger currResultIndex = new AtomicInteger();
-    doAnswer((Answer<Boolean>) invocation -> currResultIndex.getAndIncrement() < results.length).when(rs).next();
+    doAnswer((Answer<Boolean>) invocation -> currResultIndex.getAndIncrement() + 1 < results.length).when(rs).next();
     doAnswer((Answer<String>) invocation -> (String) results[currResultIndex.get()][0]).when(rs).getString(1);
     doAnswer((Answer<Integer>) invocation -> (Integer) results[currResultIndex.get()][1]).when(rs).getInt(2);
 
