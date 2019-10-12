@@ -382,12 +382,17 @@ public class ArchiveUnthinnerTest {
     expectedStatuses.put(depA, FileValidationStatus.VALID);
     verify(this.jdbcDependencyManager).updateValidationStatuses(expectedStatuses, VALIDATION_KEY);
 
-    // Verify that dependencies were removed from project /lib folder and only original snapshot jar remains
-    assertEquals(1, new File(projectFolder, depA.getDestination()).listFiles().length);
+    // Verify that depB remains in the projectFolder (total of two jars)
+    // depB was not guaranteed to be persisted to storage, thus for safety we keep it in the zip in-case
+    // the process that is uploading it fails to successfully complete the upload and the dependency is
+    // not available from storage at runtime.
+    File depBInProject = new File(projectFolder, depB.getDestination() + File.separator + depB.getFileName());
+    assertEquals(2, new File(projectFolder, depB.getDestination()).listFiles().length);
+    assertTrue(depBInProject.exists());
 
-    // Verify that the startup-dependencies.json file is NOT modified
+    // Verify that the startup-dependencies.json file now contains ONLY depA
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
-    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepsAB(), finalJSON, false);
+    JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepA(), finalJSON, false);
   }
 
   @Test

@@ -46,6 +46,7 @@ import azkaban.spi.AzkabanEventReporter;
 import azkaban.spi.EventType;
 import azkaban.spi.Storage;
 import azkaban.storage.ProjectStorageManager;
+import azkaban.utils.DependencyDownloader;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.FileIOUtils.JobMetaData;
 import azkaban.utils.FileIOUtils.LogData;
@@ -146,7 +147,7 @@ public class FlowRunnerManager implements EventListener,
   private final Object executionDirDeletionSync = new Object();
   private final CommonMetrics commonMetrics;
   private final ExecMetrics execMetrics;
-  private final Storage storage;
+  private final DependencyDownloader dependencyDownloader;
 
   private final int numThreads;
   private final int numJobThreadPerFlow;
@@ -174,7 +175,7 @@ public class FlowRunnerManager implements EventListener,
       final AlerterHolder alerterHolder,
       final CommonMetrics commonMetrics,
       final ExecMetrics execMetrics,
-      final Storage storage,
+      final DependencyDownloader dependencyDownloader,
       @Nullable final AzkabanEventReporter azkabanEventReporter) throws IOException {
     this.azkabanProps = props;
 
@@ -201,7 +202,7 @@ public class FlowRunnerManager implements EventListener,
     this.alerterHolder = alerterHolder;
     this.commonMetrics = commonMetrics;
     this.execMetrics = execMetrics;
-    this.storage = storage;
+    this.dependencyDownloader = dependencyDownloader;
 
     this.flowRampManager = flowRampManager;
 
@@ -230,7 +231,7 @@ public class FlowRunnerManager implements EventListener,
     }
 
     // Create a flow preparer
-    this.flowPreparer = new FlowPreparer(projectStorageManager, this.storage, this.projectDirectory, cleaner,
+    this.flowPreparer = new FlowPreparer(projectStorageManager, this.dependencyDownloader, this.projectDirectory, cleaner,
         this.execMetrics.getProjectCacheHitRatio(), this.executionDirectory);
 
     this.execMetrics.addFlowRunnerManagerMetrics(this);

@@ -95,19 +95,19 @@ public class ArchiveUnthinner {
 
     updateValidationStatuses(guaranteedPersistedDeps, removedDownloadedDeps, validationKey);
 
-    // See if any downloaded deps were modified/removed OR if there are any cached removed dependencies
-    if (untouchedDownloadedDeps.size() < downloadedDeps.size() || removedCachedDeps.size() > 0) {
+    // See if any downloaded deps were modified/removed/failed-to-persist OR if there are any cached removed dependencies
+    if (guaranteedPersistedDeps.size() < downloadedDeps.size() || removedCachedDeps.size() > 0) {
       // Either one or more of the dependencies we downloaded was removed/modified during validation
       // OR there are cached removed dependencies. Either way we need to remove them from the
       // startup-dependencies.json file.
 
       // Get the final list of startup dependencies that will be downloadable from storage
-      Set<Dependency> finalDeps = Sets.union(validCachedDeps, untouchedDownloadedDeps);
+      Set<Dependency> finalDeps = Sets.union(validCachedDeps, guaranteedPersistedDeps);
       rewriteStartupDependencies(startupDependenciesFile, finalDeps);
     }
 
-    // Delete untouched downloaded dependencies from the project
-    untouchedDownloadedDeps.stream().forEach(d -> d.getFile().delete());
+    // Delete from the project untouched downloaded dependencies that are guaranteed persisted to storage
+    guaranteedPersistedDeps.stream().forEach(d -> d.getFile().delete());
 
     return reports;
   }
