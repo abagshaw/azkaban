@@ -132,21 +132,8 @@ public class AzkabanProjectLoaderTest {
     // NOTE!! This test assumes that the thin archive project folder structure defined in
     // ThinArchiveTestUtils.makeSampleThinProjectDirAB() is not modified. If it is modified,
     // this test will have to be updated.
-
-    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
-
-    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
-    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
-    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
-    Utils.zipFolderContent(thinZipFolder, projectZipFile);
-
     final User uploader = new User("test_user");
-
-    // to test excluding running versions in args of cleanOlderProjectVersion
-    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
-    runningFlow.setVersion(this.VERSION);
-    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
-        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+    final File projectZipFile = setupTestTHIN();
 
     // When archiveUnthinner is called, remove a file from the folder
     doAnswer((Answer<Map<String, ValidationReport>>) invocation -> {
@@ -194,21 +181,8 @@ public class AzkabanProjectLoaderTest {
     // this test will have to be updated.
 
     final String writtenModifiedString = "HELLOEVERYONE";
-
-    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
-
-    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
-    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
-    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
-    Utils.zipFolderContent(thinZipFolder, projectZipFile);
-
     final User uploader = new User("test_user");
-
-    // to test excluding running versions in args of cleanOlderProjectVersion
-    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
-    runningFlow.setVersion(this.VERSION);
-    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
-        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+    final File projectZipFile = setupTestTHIN();
 
     // When archiveUnthinner is called, modify a file in the folder
     doAnswer((Answer<Map<String, ValidationReport>>) invocation -> {
@@ -248,20 +222,8 @@ public class AzkabanProjectLoaderTest {
 
   @Test
   public void uploadProjectTHIN() throws Exception {
-    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
-
-    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
-    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
-    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
-    Utils.zipFolderContent(thinZipFolder, projectZipFile);
-
     final User uploader = new User("test_user");
-
-    // to test excluding running versions in args of cleanOlderProjectVersion
-    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
-    runningFlow.setVersion(this.VERSION);
-    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
-        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+    final File projectZipFile = setupTestTHIN();
 
     // When archiveUnthinner is called, ensure it is called with the correct params
     doAnswer((Answer<Map<String, ValidationReport>>) invocation -> {
@@ -320,5 +282,22 @@ public class AzkabanProjectLoaderTest {
     assertThat(validationReportMap.containsKey(DIRECTORY_FLOW_REPORT_KEY)).isTrue();
     assertThat(validationReportMap.get(DIRECTORY_FLOW_REPORT_KEY).getStatus()).isEqualTo
         (ValidationStatus.PASS);
+  }
+
+  private File setupTestTHIN() throws Exception {
+    when(this.projectLoader.getLatestProjectVersion(this.project)).thenReturn(this.VERSION);
+
+    final File thinZipFolder = TEMP_DIR.newFolder("thinproj");
+    ThinArchiveTestUtils.makeSampleThinProjectDirAB(thinZipFolder);
+    File projectZipFile = TEMP_DIR.newFile("thinzipproj.zip");
+    Utils.zipFolderContent(thinZipFolder, projectZipFile);
+
+    // to test excluding running versions in args of cleanOlderProjectVersion
+    final ExecutableFlow runningFlow = new ExecutableFlow(this.project, new Flow("x"));
+    runningFlow.setVersion(this.VERSION);
+    when(this.executorLoader.fetchUnfinishedFlowsMetadata())
+        .thenReturn(ImmutableMap.of(-1, new Pair<>(null, runningFlow)));
+
+    return projectZipFile;
   }
 }
