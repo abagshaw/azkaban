@@ -27,7 +27,6 @@ import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
 import azkaban.test.executions.ThinArchiveTestUtils;
 import azkaban.utils.DependencyDownloader;
-import azkaban.utils.ThinArchiveUtils;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
 import java.util.HashMap;
@@ -43,6 +42,7 @@ import org.mockito.stubbing.Answer;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import static azkaban.test.executions.ThinArchiveTestUtils.*;
+import static azkaban.utils.ThinArchiveUtils.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -59,12 +59,17 @@ public class ArchiveUnthinnerTest {
   private Dependency depB;
   private File depAInArtifactory;
   private File depBInArtifactory;
+  private File startupDepsInProject;
+  private File depAInProject;
+  private File depBInProject;
 
   private ArchiveUnthinner archiveUnthinner;
   private ValidatorUtils validatorUtils;
   private JdbcDependencyManager jdbcDependencyManager;
   private DependencyDownloader dependencyDownloader;
   private Storage storage;
+
+  private Map<String, ValidationReport> defaultBaseReport;
 
   @Before
   public void setUp() throws Exception {
@@ -90,6 +95,11 @@ public class ArchiveUnthinnerTest {
     FileUtils.writeStringToFile(depAInArtifactory, ThinArchiveTestUtils.getDepAContent());
     FileUtils.writeStringToFile(depBInArtifactory, ThinArchiveTestUtils.getDepBContent());
 
+    // Get objects for commonly referenced files in tests
+    startupDepsInProject = getStartupDependenciesFile(projectFolder);
+    depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFileName());
+    depBInProject = new File(projectFolder, depB.getDestination() + File.separator + depB.getFileName());
+
     // When downloadDependency() is called, write the content to the file as if it was downloaded
     doAnswer((Answer) invocation -> {
       DependencyFile destDep = (DependencyFile) invocation.getArguments()[0];
@@ -105,6 +115,10 @@ public class ArchiveUnthinnerTest {
     // When the unthinner attempts to get a validationKey for the project, return our sample one.
     when(this.validatorUtils.getCacheKey(eq(this.project), eq(this.projectFolder), any()))
         .thenReturn(VALIDATION_KEY);
+
+    // Set up a default report map with a single enpty report (the cached report)
+    defaultBaseReport = new HashMap<>();
+    defaultBaseReport.put(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME, new ValidationReport());
   }
 
   @Test
@@ -116,8 +130,8 @@ public class ArchiveUnthinnerTest {
     when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
-    // When the unthinner attempts to validate the project, return an empty map (indicating that the
-    // validator found no errors and made no changes to the project)
+    // When the unthinner attempts to validate the project, return an empty map (indicating that
+    // no validators are loaded - and no validation modifications have been made)
     when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
         .thenReturn(new HashMap<>());
 
@@ -125,13 +139,13 @@ public class ArchiveUnthinnerTest {
     when(this.storage.putDependency(depEq(depA))).thenReturn(FileIOStatus.CLOSED);
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.CLOSED);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
 
     // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
+    assertEquals(result, defaultBaseReport);
 
     // Verify that both dependencies were persisted to storage
     verify(this.storage).putDependency(depEq(depA));
@@ -181,13 +195,14 @@ public class ArchiveUnthinnerTest {
     when(this.storage.putDependency(depEq(depA))).thenReturn(FileIOStatus.CLOSED);
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.CLOSED);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
 
-    // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
+    // Verify that ValidationReport is as expected (has one empty cached report)
+    defaultBaseReport.put("sample", sampleReport);
+    assertEquals(result, defaultBaseReport);
 
     // Verify that both dependencies were persisted to storage
     verify(this.storage).putDependency(depEq(depA));
@@ -216,21 +231,21 @@ public class ArchiveUnthinnerTest {
     when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
-    // When the unthinner attempts to validate the project, return an empty map (indicating that the
-    // validator found no errors and made no changes to the project)
+    // When the unthinner attempts to validate the project, return an empty map (indicating that
+    // no validators are loaded - and no validation modifications have been made)
     when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
         .thenReturn(new HashMap<>());
 
     // Indicate depB persisted successfully
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.CLOSED);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
 
-    // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
+    // Verify that ValidationReport is as expected (has one empty cached report)
+    assertEquals(result, defaultBaseReport);
 
     // Verify that ONLY depB was persisted to storage
     verify(this.storage, never()).putDependency(depEq(depA));
@@ -258,25 +273,25 @@ public class ArchiveUnthinnerTest {
     when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
         .thenReturn(sampleValidationStatuses);
 
-    // When the unthinner attempts to validate the project, return an empty map (indicating that the
-    // validator found no errors and made no changes to the project)
+    // When the unthinner attempts to validate the project, return an empty map (indicating that
+    // no validators are loaded - and no validation modifications have been made)
     when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
         .thenReturn(new HashMap<>());
 
     // Indicate depB persisted successfully
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.CLOSED);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
 
-    // Verify that ValidationReport indicates the correct removed file (and no modified files)
-    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFileName());
-    Set<File> removedFiles = new HashSet();
-    removedFiles.add(depAInProject);
-    assertEquals(removedFiles, result.get("sample").getRemovedFiles());
-    assertEquals(0, result.get("sample").getModifiedFiles().size());
+    // Verify that ValidationReport indicates the correct modified file (startup dependencies json)
+    // and two warnings, one for each cached removed file.
+    Set<File> modifiedFiles = new HashSet();
+    modifiedFiles.add(startupDepsInProject);
+    assertEquals(2, result.get(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME).getWarningMsgs().size());
+    assertEquals(modifiedFiles, result.get(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME).getModifiedFiles());
 
     // Verify that ONLY depB was persisted to storage
     verify(this.storage, never()).putDependency(depEq(depA));
@@ -306,7 +321,6 @@ public class ArchiveUnthinnerTest {
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
     // was removed.
-    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFileName());
     Set<File> removedFiles = new HashSet();
     removedFiles.add(depAInProject);
 
@@ -325,7 +339,7 @@ public class ArchiveUnthinnerTest {
     // Indicate depB persisted successfully
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.CLOSED);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
@@ -363,7 +377,6 @@ public class ArchiveUnthinnerTest {
 
     // When the unthinner attempts to validate the project, return a report indicating that the depA jar
     // was modified.
-    File depAInProject = new File(projectFolder, depA.getDestination() + File.separator + depA.getFileName());
     Set<File> modifiedFiles = new HashSet();
     modifiedFiles.add(depAInProject);
 
@@ -380,7 +393,7 @@ public class ArchiveUnthinnerTest {
     // Indicate depB persisted successfully
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.CLOSED);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
@@ -425,13 +438,16 @@ public class ArchiveUnthinnerTest {
     when(this.storage.putDependency(depEq(depA))).thenReturn(FileIOStatus.CLOSED);
     when(this.storage.putDependency(depEq(depB))).thenReturn(FileIOStatus.OPEN);
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);
 
-    // Verify that ValidationReport is as expected (empty)
-    assertEquals(result, new HashMap<>());
+    // Verify that ValidationReport contains modified startup dependencies file and depB
+    Set<File> modifiedFiles = new HashSet();
+    modifiedFiles.add(startupDepsInProject);
+    modifiedFiles.add(depBInProject);
+    assertEquals(modifiedFiles, result.get(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME).getModifiedFiles());
 
     // Verify that both dependencies were ATTEMPTED to be persisted to storage
     verify(this.storage).putDependency(depEq(depA));
@@ -479,7 +495,7 @@ public class ArchiveUnthinnerTest {
       return allReports;
     }).when(this.validatorUtils).validateProject(eq(this.project), eq(this.projectFolder), any());
 
-    File startupDependenciesFile = ThinArchiveUtils.getStartupDependenciesFile(this.projectFolder);
+    File startupDependenciesFile = getStartupDependenciesFile(this.projectFolder);
     Map<String, ValidationReport> result = this.archiveUnthinner
         .validateProjectAndPersistDependencies(this.project, this.projectFolder, startupDependenciesFile,
             null);

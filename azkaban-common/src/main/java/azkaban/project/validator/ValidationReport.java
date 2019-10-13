@@ -2,6 +2,7 @@ package azkaban.project.validator;
 
 import java.io.File;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -162,4 +163,23 @@ public class ValidationReport {
    * Get the set of removed files
    */
   public Set<File> getRemovedFiles() { return this._removedFiles; }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ValidationReport that = (ValidationReport) o;
+    return _status == that._status && _removedFiles.equals(that._removedFiles) && _modifiedFiles.equals(
+        that._modifiedFiles) && _infoMsgs.equals(that._infoMsgs) && _warningMsgs.equals(that._warningMsgs) && _errorMsgs
+        .equals(that._errorMsgs);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(_status, _removedFiles, _modifiedFiles, _infoMsgs, _warningMsgs, _errorMsgs);
+  }
 }

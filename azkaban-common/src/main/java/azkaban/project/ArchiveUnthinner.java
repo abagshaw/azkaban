@@ -34,7 +34,7 @@ import static azkaban.utils.ThinArchiveUtils.*;
 public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
-  private static final String CACHE_REPORT_NAME = "Cached Validator Actions";
+  public static final String UNTHINNING_CACHED_VALIDATOR_REPORT_NAME = "Unthinning & Cached Validator Actions";
 
   private final JdbcDependencyManager jdbcDependencyManager;
   private final DependencyDownloader dependencyDownloader;
@@ -105,6 +105,9 @@ public class ArchiveUnthinner {
     // validation. The dependencies that have a cached validation status of REMOVED are not actually downloaded and
     // thus are not passed through the validator so no warnings will generated for them - so we have to add our own.
     cacheReport.addWarningMsgs(getWarningsFromRemovedDeps(removedCachedDeps));
+    // Add files that were kept in archive due to a failed persist to the list of modified files (because they were
+    // downloaded and then added to the project folder)
+    cacheReport.addModifiedFiles(getPotentiallyPersistedDeps(untouchedDownloadedDeps, guaranteedPersistedDeps));
 
     // See if any downloaded deps were modified/removed/failed-to-persist OR if there are any cached removed dependencies
     if (guaranteedPersistedDeps.size() < downloadedDeps.size() || removedCachedDeps.size() > 0) {
@@ -124,7 +127,7 @@ public class ArchiveUnthinner {
     guaranteedPersistedDeps.stream().forEach(d -> d.getFile().delete());
 
     // Add the cacheReport to the list of reports
-    reports.put(CACHE_REPORT_NAME, cacheReport);
+    reports.put(UNTHINNING_CACHED_VALIDATOR_REPORT_NAME, cacheReport);
 
     return reports;
   }
@@ -237,6 +240,15 @@ public class ArchiveUnthinner {
         .keySet()
         .stream()
         .filter(d -> validationStatuses.get(d) == status)
+        .collect(Collectors.toSet());
+  }
+
+  private Set<File> getPotentiallyPersistedDeps(Set<DependencyFile> untouchedDownloadedDeps,
+      Set<DependencyFile> guaranteedPersistedDeps) {
+    // The difference between guaranteedPersistedDeps and untouchedDownloadedDeps will be potentially persisted deps
+    return Sets.difference(guaranteedPersistedDeps, untouchedDownloadedDeps)
+        .stream()
+        .map(DependencyFile::getFile)
         .collect(Collectors.toSet());
   }
 
