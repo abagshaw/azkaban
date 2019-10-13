@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import azkaban.AzkabanCommonModuleConfig;
-import azkaban.spi.FileStatus;
+import azkaban.spi.FileIOStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
@@ -111,12 +111,12 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public FileStatus putDependency(final DependencyFile f) throws IOException {
-    FileStatus status = dependencyStatus(f);
-    if (status == FileStatus.NON_EXISTANT) {
+  public FileIOStatus putDependency(final DependencyFile f) throws IOException {
+    FileIOStatus status = dependencyStatus(f);
+    if (status == FileIOStatus.NON_EXISTANT) {
       try {
         writeDependency(f);
-        status = FileStatus.CLOSED;
+        status = FileIOStatus.CLOSED;
       } catch (FileAlreadyExistsException e) {
         // Looks like another process beat us to the race. It started writing the file before we could.
         // It's possible that the process completed writing the file, but it's also possible that the file is
@@ -125,7 +125,7 @@ public class HdfsStorage implements Storage {
         // that depends on this dependency, it will be identified as CLOSED on storage and then persisted in DB.
         // So essentially, we're just deferring caching the results of validation for this dependency until next
         // project upload.
-        status = FileStatus.OPEN;
+        status = FileIOStatus.OPEN;
       }
     }
     return status;
@@ -156,12 +156,12 @@ public class HdfsStorage implements Storage {
   }
 
   @Override
-  public FileStatus dependencyStatus(final Dependency dep) throws IOException {
+  public FileIOStatus dependencyStatus(final Dependency dep) throws IOException {
     this.hdfsAuth.authorize();
     try {
-      return dfs.isFileClosed(getDependencyPath(dep)) ? FileStatus.CLOSED : FileStatus.OPEN;
+      return dfs.isFileClosed(getDependencyPath(dep)) ? FileIOStatus.CLOSED : FileIOStatus.OPEN;
     } catch (final FileNotFoundException e) {
-      return FileStatus.NON_EXISTANT;
+      return FileIOStatus.NON_EXISTANT;
     }
   }
 

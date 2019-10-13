@@ -19,7 +19,7 @@ package azkaban.storage;
 
 import azkaban.AzkabanCommonModuleConfig;
 import azkaban.spi.Dependency;
-import azkaban.spi.FileStatus;
+import azkaban.spi.FileIOStatus;
 import azkaban.spi.ProjectStorageMetadata;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
@@ -29,7 +29,6 @@ import azkaban.utils.Props;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URI;
-import java.nio.file.FileAlreadyExistsException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -113,19 +112,19 @@ public class HdfsStorageTest {
   @Test
   public void testDependencyStatus_NON_EXISTANT() throws Exception {
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenThrow(new FileNotFoundException());
-    assertEquals(FileStatus.NON_EXISTANT, this.hdfsStorage.dependencyStatus(DEP_A));
+    assertEquals(FileIOStatus.NON_EXISTANT, this.hdfsStorage.dependencyStatus(DEP_A));
   }
 
   @Test
   public void testDependencyStatus_OPEN() throws Exception {
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(false);
-    assertEquals(FileStatus.OPEN, this.hdfsStorage.dependencyStatus(DEP_A));
+    assertEquals(FileIOStatus.OPEN, this.hdfsStorage.dependencyStatus(DEP_A));
   }
 
   @Test
   public void testDependencyStatus_CLOSED() throws Exception {
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(true);
-    assertEquals(FileStatus.CLOSED, this.hdfsStorage.dependencyStatus(DEP_A));
+    assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.dependencyStatus(DEP_A));
   }
 
   @Test
@@ -136,7 +135,7 @@ public class HdfsStorageTest {
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenThrow(new FileNotFoundException());
 
     DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
-    assertEquals(FileStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
+    assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
     verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
   }
@@ -149,7 +148,7 @@ public class HdfsStorageTest {
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(true);
 
     DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
-    assertEquals(FileStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
+    assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
     // Because the dependency already exists, NO attempt should be made to persist it.
     verify(this.hdfs, never()).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
@@ -163,7 +162,7 @@ public class HdfsStorageTest {
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(false);
 
     DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
-    assertEquals(FileStatus.OPEN, this.hdfsStorage.putDependency(depFile));
+    assertEquals(FileIOStatus.OPEN, this.hdfsStorage.putDependency(depFile));
 
     // Because the dependency already exists, NO attempt should be made to persist it.
     verify(this.hdfs, never()).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
@@ -187,7 +186,7 @@ public class HdfsStorageTest {
     // We expect putDependency to return a FileStatus of OPEN because, while it's POSSIBLE that the
     // other process completed writing to the file and the file status is actually CLOSED, we'll play it safe
     // and assume it is OPEN to ensure consuming methods know not to rely on the file being persisted to HDFS.
-    assertEquals(FileStatus.OPEN, this.hdfsStorage.putDependency(depFile));
+    assertEquals(FileIOStatus.OPEN, this.hdfsStorage.putDependency(depFile));
   }
 
   @Test

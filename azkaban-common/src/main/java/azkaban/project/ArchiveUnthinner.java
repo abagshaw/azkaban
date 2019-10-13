@@ -5,7 +5,7 @@ import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.DownloadOrigin;
-import azkaban.spi.FileStatus;
+import azkaban.spi.FileIOStatus;
 import azkaban.spi.FileValidationStatus;
 import azkaban.spi.Storage;
 import azkaban.utils.DependencyDownloader;
@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,6 +33,8 @@ import static azkaban.utils.ThinArchiveUtils.*;
 
 public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
+
+  private static final String CACHE_REPORT_NAME = "Cached Validator Actions";
 
   private final JdbcDependencyManager jdbcDependencyManager;
   private final DependencyDownloader dependencyDownloader;
@@ -86,20 +89,31 @@ public class ArchiveUnthinner {
 
     // Persist the unmodified dependencies and get a list of dependencies that we are 100% sure were successfully
     // persisted. It's possible that we were unable to persist some because another process was also uploading it.
-    // In that case we will still continue with the project upload, but NOT persist an entry in the DB for it in
+    // In that case we will keep those dependencies in the archive and NOT persist an entry for them in the DB in
     // case the other process fails to upload. If we did persist an entry in the DB and the other process failed to
     // upload to storage, we would be in BIG TROUBLE!! because the DB would indicate all is well and that file is persisted
     // but in reality it doesn't exist on storage, so any flows that depend on that dependency will fail, even if you
-    // try to reupload them! So we don't want to do that.
+    // try to re-upload them! So we don't want to do that.
     Set<DependencyFile> guaranteedPersistedDeps = persistUntouchedNewDependencies(untouchedDownloadedDeps);
 
     updateValidationStatuses(guaranteedPersistedDeps, removedDownloadedDeps, validationKey);
+
+    // Create a new report that will include details of actions taken based on previous cached validation actions.
+    ValidationReport cacheReport = new ValidationReport();
+    // Add warnings for files removed due to a cached validation status of REMOVED. Note that we don't have to manually
+    // add warnings for removedDownloadedDeps because the validator should already create warnings for them during
+    // validation. The dependencies that have a cached validation status of REMOVED are not actually downloaded and
+    // thus are not passed through the validator so no warnings will generated for them - so we have to add our own.
+    cacheReport.addWarningMsgs(getWarningsFromRemovedDeps(removedCachedDeps));
 
     // See if any downloaded deps were modified/removed/failed-to-persist OR if there are any cached removed dependencies
     if (guaranteedPersistedDeps.size() < downloadedDeps.size() || removedCachedDeps.size() > 0) {
       // Either one or more of the dependencies we downloaded was removed/modified during validation
       // OR there are cached removed dependencies. Either way we need to remove them from the
       // startup-dependencies.json file.
+
+      // Indicate in the cacheReport that we modified startup-dependencies.json
+      cacheReport.addModifiedFile(startupDependenciesFile);
 
       // Get the final list of startup dependencies that will be downloadable from storage
       Set<Dependency> finalDeps = Sets.union(validCachedDeps, guaranteedPersistedDeps);
@@ -108,6 +122,9 @@ public class ArchiveUnthinner {
 
     // Delete from the project untouched downloaded dependencies that are guaranteed persisted to storage
     guaranteedPersistedDeps.stream().forEach(d -> d.getFile().delete());
+
+    // Add the cacheReport to the list of reports
+    reports.put(CACHE_REPORT_NAME, cacheReport);
 
     return reports;
   }
@@ -136,8 +153,8 @@ public class ArchiveUnthinner {
         // add an entry in the DB because it's possible that the other process that is currently writing the
         // dependency fails and we want to ensure that the DB ONLY includes entries for verified dependencies
         // when they are GUARANTEED to be persisted to storage.
-        FileStatus resultOfPersisting = this.storage.putDependency(f);
-        if (resultOfPersisting == FileStatus.CLOSED) {
+        FileIOStatus resultOfPersisting = this.storage.putDependency(f);
+        if (resultOfPersisting == FileIOStatus.CLOSED) {
           // The dependency has a status of closed, so we are guaranteed that it persisted successfully to storage.
           guaranteedPersistedDeps.add(f);
         }
@@ -203,6 +220,7 @@ public class ArchiveUnthinner {
         .map(fn)
         .flatMap(set -> set.stream())
         .map(f -> pathToDep.get(FileIOUtils.getCanonicalPath(f)))
+        .filter(Objects::nonNull) // Some modified/removed files will not be a dependency (i.e. shapshot jar)
         .collect(Collectors.toSet());
   }
 
@@ -219,6 +237,13 @@ public class ArchiveUnthinner {
         .keySet()
         .stream()
         .filter(d -> validationStatuses.get(d) == status)
+        .collect(Collectors.toSet());
+  }
+
+  private Set<String> getWarningsFromRemovedDeps(Set<? extends Dependency> removedDeps) {
+    return removedDeps
+        .stream()
+        .map(d -> String.format("Removed blacklisted file %s", d.getFileName()))
         .collect(Collectors.toSet());
   }
 }

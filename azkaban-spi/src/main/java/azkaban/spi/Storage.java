@@ -20,7 +20,6 @@ package azkaban.spi;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileAlreadyExistsException;
 
 
 /**
@@ -59,7 +58,7 @@ public interface Storage {
    * @param file File and dependency details associated with dependency
    * @return FileStatus resulting file status after writing (or attempting to write)
    */
-  FileStatus putDependency(DependencyFile file) throws IOException;
+  FileIOStatus putDependency(DependencyFile file) throws IOException;
 
   /**
    * Get an InputStream object for a dependency.
@@ -75,7 +74,7 @@ public interface Storage {
    * @param dep the dependency for which to fetch the FileStatus for
    * @return current FileStatus of the dependency
    */
-  FileStatus dependencyStatus(Dependency dep) throws IOException;
+  FileIOStatus dependencyStatus(Dependency dep) throws IOException;
 
   /**
    * Delete an object from Storage.

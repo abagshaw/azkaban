@@ -98,10 +98,17 @@ public class ValidationReport {
   }
 
   /**
-   * Add a set of modified files
+   * Add a set of modified OR created files
    */
   public void addModifiedFiles(final Set<File> files) {
     this._modifiedFiles.addAll(files);
+  }
+
+  /**
+   * Add one of modified OR created file
+   */
+  public void addModifiedFile(final File file) {
+    this._modifiedFiles.add(file);
   }
 
   /**
@@ -109,6 +116,13 @@ public class ValidationReport {
    */
   public void addRemovedFiles(final Set<File> files) {
     this._removedFiles.addAll(files);
+  }
+
+  /**
+   * Add one removed file
+   */
+  public void addRemovedFile(final File file) {
+    this._removedFiles.add(file);
   }
 
   /**
@@ -140,7 +154,7 @@ public class ValidationReport {
   }
 
   /**
-   * Get the set of modified files
+   * Get the set of modified OR created files
    */
   public Set<File> getModifiedFiles() { return this._modifiedFiles; }
 

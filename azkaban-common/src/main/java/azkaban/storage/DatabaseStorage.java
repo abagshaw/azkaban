@@ -20,7 +20,7 @@ package azkaban.storage;
 import azkaban.project.ProjectFileHandler;
 import azkaban.project.ProjectLoader;
 import azkaban.spi.AzkabanException;
-import azkaban.spi.FileStatus;
+import azkaban.spi.FileIOStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
@@ -67,7 +67,7 @@ public class DatabaseStorage implements Storage {
   }
 
   @Override
-  public FileStatus putDependency(DependencyFile f) throws AzkabanException {
+  public FileIOStatus putDependency(DependencyFile f) throws AzkabanException {
     throw new UnsupportedOperationException(
         "Not implemented yet. Must use HdfsStorage or LocalStorage.");
   }
@@ -79,7 +79,7 @@ public class DatabaseStorage implements Storage {
   }
 
   @Override
-  public FileStatus dependencyStatus(Dependency dep) {
+  public FileIOStatus dependencyStatus(Dependency dep) {
     throw new UnsupportedOperationException(
         "Not implemented yet. Must use HdfsStorage or LocalStorage.");
   }

@@ -22,7 +22,7 @@ import static azkaban.utils.StorageUtils.*;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import azkaban.AzkabanCommonModuleConfig;
-import azkaban.spi.FileStatus;
+import azkaban.spi.FileIOStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
 import azkaban.spi.Storage;
@@ -114,7 +114,7 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public FileStatus putDependency(DependencyFile f) {
+  public FileIOStatus putDependency(DependencyFile f) {
     final File targetFile = getDependencyFile(f);
 
     // Copy file to storage dir
@@ -126,7 +126,7 @@ public class LocalStorage implements Storage {
       throw new StorageException(e);
     }
 
-    return FileStatus.CLOSED;
+    return FileIOStatus.CLOSED;
   }
 
   @Override
@@ -136,10 +136,10 @@ public class LocalStorage implements Storage {
   }
 
   @Override
-  public FileStatus dependencyStatus(Dependency dep) {
+  public FileIOStatus dependencyStatus(Dependency dep) {
     // We assume that on a local file system we're only using this for dev so no need to check
     // to see if the file is actually open. We'll assume that if it exists, it's closed.
-    return getDependencyFile(dep).exists() ? FileStatus.CLOSED : FileStatus.NON_EXISTANT;
+    return getDependencyFile(dep).exists() ? FileIOStatus.CLOSED : FileIOStatus.NON_EXISTANT;
   }
 
   private File getDependencyFile(Dependency dep) {
