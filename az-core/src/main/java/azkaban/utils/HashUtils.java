@@ -60,13 +60,21 @@ public enum HashUtils {
     return digest;
   }
 
-  public byte[] getHash(final String str) {
+  public String getHashStr(final String str) {
+    return bytesHashToString(getHashBytes(str));
+  }
+
+  public byte[] getHashBytes(final String str) {
     final MessageDigest digest = getDigest();
     digest.update(str.getBytes(UTF_8));
     return digest.digest();
   }
 
-  public byte[] getHash(final File file) throws IOException {
+  public String getHashStr(final File file) throws IOException {
+    return bytesHashToString(getHashBytes(file));
+  }
+
+  public byte[] getHashBytes(final File file) throws IOException {
     final MessageDigest digest = getDigest();
 
     final FileInputStream fStream = new FileInputStream(file);

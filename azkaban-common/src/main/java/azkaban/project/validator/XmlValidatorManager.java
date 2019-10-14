@@ -231,24 +231,24 @@ public class XmlValidatorManager implements ValidatorManager {
     StringBuilder compoundedKey = new StringBuilder();
     for (final Entry<String, ProjectValidatorCacheable> validator : this.cacheableValidators.entrySet()) {
       try {
-        compoundedKey.append(((ProjectValidatorCacheable) validator.getValue()).getCacheKey(project,
-            projectDir, props));
+        // Will attempt to implicitly cast to ProjectValidatorCacheable
+        compoundedKey.append(validator.getValue().getCacheKey(project, projectDir, props));
       } catch (ClassCastException e) {
         // Swallow this error - the validator must not have been a cacheable validator
       }
     }
-    return HashUtils.bytesHashToString(HashUtils.SHA1.getHash(compoundedKey.toString()));
+    return HashUtils.SHA1.getHashStr(compoundedKey.toString());
   }
 
   @Override
-  public Map<String, ValidationReport> validate(Project project, File projectDir, Props props) {
-    if (props == null) {
-      props = new Props();
+  public Map<String, ValidationReport> validate(Project project, File projectDir, Props additionalProps) {
+    if (additionalProps == null) {
+      additionalProps = new Props();
     }
 
     final Map<String, ValidationReport> reports = new LinkedHashMap<>();
     for (final Entry<String, ProjectValidator> validator : this.validators.entrySet()) {
-      reports.put(validator.getKey(), validator.getValue().validateProject(project, projectDir));
+      reports.put(validator.getKey(), validator.getValue().validateProject(project, projectDir, additionalProps));
       logger.info("Validation status of validator " + validator.getKey() + " is "
           + reports.get(validator.getKey()).getStatus());
     }

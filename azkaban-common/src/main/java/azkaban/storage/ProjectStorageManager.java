@@ -136,7 +136,7 @@ public class ProjectStorageManager {
   private byte[] computeHash(final File localFile) {
     final byte[] md5;
     try {
-      md5 = HashUtils.MD5.getHash(localFile);
+      md5 = HashUtils.MD5.getHashBytes(localFile);
     } catch (final IOException e) {
       throw new StorageException(e);
     }
@@ -187,7 +187,7 @@ public class ProjectStorageManager {
   }
 
   private void validateChecksum(final File file, final ProjectFileHandler pfh) throws IOException {
-    final byte[] hash = HashUtils.MD5.getHash(file);
+    final byte[] hash = HashUtils.MD5.getHashBytes(file);
     checkState(HashUtils.isSameHash(pfh.getMD5Hash(), hash),
         String.format("MD5 HASH Failed. project ID: %d version: %d Expected: %s Actual: %s",
             pfh.getProjectId(), pfh.getVersion(),

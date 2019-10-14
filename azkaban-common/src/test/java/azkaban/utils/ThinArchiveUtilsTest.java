@@ -196,7 +196,7 @@ public class ThinArchiveUtilsTest {
   @Test(expected = HashNotMatchException.class)
   public void testValidateDependencyHashInvalid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
-    String depFileHash = HashUtils.bytesHashToString(HashUtils.SHA1.getHash(depFile));
+    String depFileHash = HashUtils.SHA1.getHashStr(depFile);
 
     Dependency details = new Dependency(
         "dep.jar",

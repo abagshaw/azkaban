@@ -34,27 +34,33 @@ public class HashUtilsTest {
   }
 
   @Test
-  public void MD5onFile() throws Exception {
-    assertThat(HashUtils.MD5.getHash(sampleFile), is(SAMPLE_STR_MD5_BYTES));
+  public void MD5BytesFromFile() throws Exception {
+    assertThat(HashUtils.MD5.getHashBytes(sampleFile), is(SAMPLE_STR_MD5_BYTES));
   }
 
   @Test
-  public void SHA1onFile() throws Exception {
-    assertThat(HashUtils.SHA1.getHash(sampleFile), is(SAMPLE_STR_SHA1_BYTES));
+  public void SHA1BytesFromFile() throws Exception {
+    assertThat(HashUtils.SHA1.getHashBytes(sampleFile), is(SAMPLE_STR_SHA1_BYTES));
   }
 
   @Test
-  public void MD5onString() throws Exception {
-    assertEquals(
-        HashUtils.bytesHashToString(HashUtils.MD5.getHash(SAMPLE_STR)).toUpperCase(),
-        SAMPLE_STR_MD5);
+  public void MD5BytesFromString() throws Exception {
+    assertThat(HashUtils.MD5.getHashBytes(SAMPLE_STR), is(SAMPLE_STR_MD5_BYTES));
   }
 
   @Test
-  public void SHA1onString() throws Exception {
-    assertEquals(
-        HashUtils.bytesHashToString(HashUtils.SHA1.getHash(SAMPLE_STR)).toUpperCase(),
-        SAMPLE_STR_SHA1);
+  public void SHA1BytesFromString() throws Exception {
+    assertThat(HashUtils.SHA1.getHashBytes(SAMPLE_STR), is(SAMPLE_STR_SHA1_BYTES));
+  }
+
+  @Test
+  public void SHA1StringFromFile() throws Exception {
+    assertEquals(SAMPLE_STR_SHA1, HashUtils.SHA1.getHashStr(sampleFile).toUpperCase());
+  }
+
+  @Test
+  public void SHA1StringFromString() throws Exception {
+    assertEquals(SAMPLE_STR_SHA1, HashUtils.SHA1.getHashStr(SAMPLE_STR).toUpperCase());
   }
 
   @Test

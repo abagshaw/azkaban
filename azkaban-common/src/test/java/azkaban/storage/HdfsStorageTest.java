@@ -89,11 +89,11 @@ public class HdfsStorageTest {
   public void testPutProject() throws Exception {
     final File file = new File(
         getClass().getClassLoader().getResource("sample_flow_01.zip").getFile());
-    final String hash = new String(Hex.encodeHex(HashUtils.MD5.getHash(file)));
+    final String hash = new String(Hex.encodeHex(HashUtils.MD5.getHashBytes(file)));
 
     when(this.hdfs.exists(any(Path.class))).thenReturn(false);
 
-    final ProjectStorageMetadata metadata = new ProjectStorageMetadata(1, 2, "uploader", HashUtils.MD5.getHash(file));
+    final ProjectStorageMetadata metadata = new ProjectStorageMetadata(1, 2, "uploader", HashUtils.MD5.getHashBytes(file));
     final String key = this.hdfsStorage.putProject(metadata, file);
 
     final String expectedName = String.format("1/1-%s.zip", hash);

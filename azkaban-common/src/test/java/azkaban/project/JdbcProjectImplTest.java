@@ -171,7 +171,7 @@ public class JdbcProjectImplTest {
   private byte[] computeHash(final File localFile) {
     final byte[] md5;
     try {
-      md5 = HashUtils.MD5.getHash(localFile);
+      md5 = HashUtils.MD5.getHashBytes(localFile);
     } catch (final IOException e) {
       throw new ProjectManagerException("Error getting MD5 hash.", e);
     }

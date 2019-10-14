@@ -41,7 +41,6 @@ import azkaban.utils.Pair;
 import azkaban.utils.Props;
 import azkaban.utils.PropsUtils;
 import azkaban.utils.Triple;
-import com.google.common.io.Files;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -292,7 +291,7 @@ public class JdbcProjectImpl implements ProjectLoader {
     logger.info("Creating MD5 hash for upload " + localFile.getName());
     final byte[] md5;
     try {
-      md5 = HashUtils.MD5.getHash(localFile);
+      md5 = HashUtils.MD5.getHashBytes(localFile);
     } catch (final IOException e) {
       throw new ProjectManagerException("Error getting MD5 hash.", e);
     }
@@ -522,7 +521,7 @@ public class JdbcProjectImpl implements ProjectLoader {
     // Check md5.
     final byte[] md5;
     try {
-      md5 = HashUtils.MD5.getHash(file);
+      md5 = HashUtils.MD5.getHashBytes(file);
     } catch (final IOException e) {
       throw new ProjectManagerException("Error getting MD5 hash.", e);
     }
