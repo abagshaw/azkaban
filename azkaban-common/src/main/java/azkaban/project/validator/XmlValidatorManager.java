@@ -50,7 +50,6 @@ public class XmlValidatorManager implements ValidatorManager {
   private static ValidatorClassLoader validatorLoader;
   private final String validatorDirPath;
   private Map<String, ProjectValidator> validators;
-  private Map<String, ProjectValidatorCacheable> cacheableValidators;
 
   /**
    * Load the validator plugins from the validator directory (default being validators/) into the
@@ -130,7 +129,6 @@ public class XmlValidatorManager implements ValidatorManager {
   @Override
   public void loadValidators(final Props props, final Logger log) {
     this.validators = new LinkedHashMap<>();
-    this.cacheableValidators = new LinkedHashMap<>();
     if (!props.containsKey(ValidatorConfigs.XML_FILE_PARAM)) {
       logger.warn(
           "Azkaban properties file does not contain the key " + ValidatorConfigs.XML_FILE_PARAM);
@@ -229,10 +227,10 @@ public class XmlValidatorManager implements ValidatorManager {
     }
 
     StringBuilder compoundedKey = new StringBuilder();
-    for (final Entry<String, ProjectValidatorCacheable> validator : this.cacheableValidators.entrySet()) {
+    for (final Entry<String, ProjectValidator> validator : this.validators.entrySet()) {
       try {
-        // Will attempt to implicitly cast to ProjectValidatorCacheable
-        compoundedKey.append(validator.getValue().getCacheKey(project, projectDir, props));
+        // Attempt to cast to ProjectValidatorCacheable
+        compoundedKey.append(((ProjectValidatorCacheable) validator.getValue()).getCacheKey(project, projectDir, props));
       } catch (ClassCastException e) {
         // Swallow this error - the validator must not have been a cacheable validator
       }
