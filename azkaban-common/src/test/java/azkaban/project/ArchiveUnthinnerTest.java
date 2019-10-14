@@ -287,10 +287,10 @@ public class ArchiveUnthinnerTest {
             null);
 
     // Verify that ValidationReport indicates the correct modified file (startup dependencies json)
-    // and two warnings, one for each cached removed file.
+    // and one warning for the cached removed file
     Set<File> modifiedFiles = new HashSet();
     modifiedFiles.add(startupDepsInProject);
-    assertEquals(2, result.get(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME).getWarningMsgs().size());
+    assertEquals(1, result.get(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME).getWarningMsgs().size());
     assertEquals(modifiedFiles, result.get(ArchiveUnthinner.UNTHINNING_CACHED_VALIDATOR_REPORT_NAME).getModifiedFiles());
 
     // Verify that ONLY depB was persisted to storage

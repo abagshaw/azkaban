@@ -246,7 +246,7 @@ public class ArchiveUnthinner {
   private Set<File> getPotentiallyPersistedDeps(Set<DependencyFile> untouchedDownloadedDeps,
       Set<DependencyFile> guaranteedPersistedDeps) {
     // The difference between guaranteedPersistedDeps and untouchedDownloadedDeps will be potentially persisted deps
-    return Sets.difference(guaranteedPersistedDeps, untouchedDownloadedDeps)
+    return Sets.difference(untouchedDownloadedDeps, guaranteedPersistedDeps)
         .stream()
         .map(DependencyFile::getFile)
         .collect(Collectors.toSet());
