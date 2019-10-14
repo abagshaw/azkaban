@@ -26,7 +26,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.FileUtils;
+
+import static java.nio.charset.StandardCharsets.*;
 
 
 /**
@@ -61,7 +62,7 @@ public enum HashUtils {
 
   public byte[] getHash(final String str) {
     final MessageDigest digest = getDigest();
-    digest.update(str.getBytes());
+    digest.update(str.getBytes(UTF_8));
     return digest.digest();
   }
 

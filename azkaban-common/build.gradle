@@ -13,16 +13,6 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-plugins {
-    id 'maven'
-}
-
-repositories {
-    maven {
-        url '/Users/abagshaw/.m2/'
-    }
-}
-
 dependencies {
     compile project(':az-core')
     compile project(':azkaban-spi')

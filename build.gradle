@@ -13,7 +13,6 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-
 buildscript {
   repositories {
     mavenCentral()
@@ -68,6 +67,7 @@ ext.deps = [
     collections          : 'commons-collections:commons-collections:3.2.2',
     commonsCli           : 'commons-cli:commons-cli:1.3.1',
     commonsLang          : 'commons-lang:commons-lang:2.6',
+    commonsCodec         : 'commons-codec:commons-codec:1.13',
     commonsCompress      : 'org.apache.commons:commons-compress:1.16.1',
     dbcp2                : 'org.apache.commons:commons-dbcp2:2.1.1',
     dbutils              : 'commons-dbutils:commons-dbutils:1.5',
@@ -130,6 +130,7 @@ ext.deps = [
 subprojects {
   apply plugin: 'java'
   apply plugin: 'net.ltgt.errorprone'
+  apply plugin: 'maven-publish'
 
   // Set the same version for all sub-projects to root project version
   version = rootProject.version
@@ -200,6 +201,31 @@ subprojects {
   tasks.withType(JavaCompile) {
     options.compilerArgs += ["-Werror"]
   }
+
+  /**
+   * Set up for publishing to maven local
+   */
+
+  task sourcesJar(type: Jar) {
+    classifier 'sources'
+    from sourceSets.main.allSource
+  }
+
+  artifacts {
+    archives sourcesJar
+  }
+
+  publishing {
+    publications {
+      mavenJava(MavenPublication) {
+        from components.java
+        artifact sourcesJar
+
+        groupId    "com.linkedin.azkaban"
+      }
+    }
+  }
+
 
   /**
    * Print test execution summary when informational logging is enabled.*/
