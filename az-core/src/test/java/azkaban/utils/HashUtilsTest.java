@@ -55,12 +55,12 @@ public class HashUtilsTest {
 
   @Test
   public void SHA1StringFromFile() throws Exception {
-    assertEquals(SAMPLE_STR_SHA1, HashUtils.SHA1.getHashStr(sampleFile).toUpperCase());
+    assertEquals(SAMPLE_STR_SHA1.toLowerCase(), HashUtils.SHA1.getHashStr(sampleFile));
   }
 
   @Test
   public void SHA1StringFromString() throws Exception {
-    assertEquals(SAMPLE_STR_SHA1, HashUtils.SHA1.getHashStr(SAMPLE_STR).toUpperCase());
+    assertEquals(SAMPLE_STR_SHA1.toLowerCase(), HashUtils.SHA1.getHashStr(SAMPLE_STR));
   }
 
   @Test

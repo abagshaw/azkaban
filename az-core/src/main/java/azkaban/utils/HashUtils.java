@@ -61,7 +61,7 @@ public enum HashUtils {
   }
 
   public String getHashStr(final String str) {
-    return bytesHashToString(getHashBytes(str));
+    return bytesHashToString(getHashBytes(str)).toLowerCase();
   }
 
   public byte[] getHashBytes(final String str) {
@@ -71,7 +71,7 @@ public enum HashUtils {
   }
 
   public String getHashStr(final File file) throws IOException {
-    return bytesHashToString(getHashBytes(file));
+    return bytesHashToString(getHashBytes(file)).toLowerCase();
   }
 
   public byte[] getHashBytes(final File file) throws IOException {
