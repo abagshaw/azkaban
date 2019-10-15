@@ -48,6 +48,19 @@ public class ThinArchiveUtils {
         + dep.getFileName();
   }
 
+  /**
+   * Taking a list of file paths of jars within a project folder, if the project has a startup-dependencies.json
+   * file (therefore is from a thin archive) each file path will be compared against the cached dependencies listed
+   * in startup-dependencies.json. If a match is found, the file path will be replaced with a hdfs:// path to the
+   * cached dependency. If a match is not found, the original local file path will be included in the returned list.
+   * IF the project does not have a startup-dependencies.json file (is not a thin archive) - the list of file paths
+   * passed in will be returned without modification.
+   *
+   * @param projectFolder root folder of uncompressed project
+   * @param localDependencies list of file path strings to jar dependencies within the project folder
+   * @param systemProps system props
+   * @return list of file path strings and hdfs:// path strings, one for each dependency
+   */
   public static List<String> replaceLocalPathsWithStoragePaths(final File projectFolder,
       final List<String> localDependencies, final Props systemProps) {
     File startupDependenciesFile = getStartupDependenciesFile(projectFolder);
