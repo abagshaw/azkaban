@@ -134,12 +134,17 @@ public class ThinArchiveTestUtils {
     return "com/linkedin/test/testeraaaa/1.0.1/aaaa.jar";
   }
   public static Dependency getDepA() {
-    return new Dependency(
-      "aaaa.jar",
-      "lib",
-      "jar",
-      "com.linkedin.test:testeraaaa:1.0.1",
-      "131BD316A77423E6B80D93262B576C139C72B4C3");
+    try {
+      return new Dependency(
+          "aaaa.jar",
+          "lib",
+          "jar",
+          "com.linkedin.test:testeraaaa:1.0.1",
+          "131BD316A77423E6B80D93262B576C139C72B4C3");
+    } catch (Exception e) {
+      // This will never happen
+      throw new RuntimeException("Test utils tried to create a dependency with an invalid hash.");
+    }
   }
 
   public static String getDepBContent() { return "ladedah83"; }
@@ -147,12 +152,17 @@ public class ThinArchiveTestUtils {
     return "com/linkedin/test/testerbbbb/1.0.1/bbbb.jar";
   }
   public static Dependency getDepB() {
-    return new Dependency(
-      "bbbb.jar",
-      "lib",
-      "jar",
-      "com.linkedin.test:testerbbbb:1.0.1",
-      "9461919846E1E7C8FC74FEE95AA6AC74993BE71E");
+    try {
+      return new Dependency(
+        "bbbb.jar",
+        "lib",
+        "jar",
+        "com.linkedin.test:testerbbbb:1.0.1",
+        "9461919846E1E7C8FC74FEE95AA6AC74993BE71E");
+    } catch (Exception e) {
+      // This will never happen
+      throw new RuntimeException("Test utils tried to create a dependency with an invalid hash.");
+    }
   }
 
   public static String getDepCContent() { return "myprecious"; }
@@ -160,11 +170,16 @@ public class ThinArchiveTestUtils {
     return "com/linkedin/test/testercccc/1.0.1/cccc.jar";
   }
   public static Dependency getDepC() {
-    return new Dependency(
-        "cccc.jar",
-        "lib",
-        "jar",
-        "com.linkedin.test:testercccc:1.0.1",
-        "F873F39163F5B43DBF1FEE63CBCE284074896221");
+    try {
+      return new Dependency(
+          "cccc.jar",
+          "lib",
+          "jar",
+          "com.linkedin.test:testercccc:1.0.1",
+          "F873F39163F5B43DBF1FEE63CBCE284074896221");
+    } catch (Exception e) {
+      // This will never happen
+      throw new RuntimeException("Test utils tried to create a dependency with an invalid hash.");
+    }
   }
 }

@@ -11,6 +11,7 @@ import azkaban.spi.Storage;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.HashNotMatchException;
+import azkaban.utils.InvalidHashException;
 import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
 import com.google.common.collect.Sets;
@@ -145,6 +146,8 @@ public class ArchiveUnthinner {
       return parseStartupDependencies(startupDependenciesFile);
     } catch (IOException e) {
       throw new ProjectManagerException("Unable to open or parse startup-dependencies.json", e);
+    } catch (InvalidHashException e) {
+      throw new ProjectManagerException("One or more of the SHA1 hashes in startup-dependencies.json was invalid", e);
     }
   }
 
@@ -189,8 +192,8 @@ public class ArchiveUnthinner {
     // to storage.
     Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
     // NOTE: .map(Dependency::new) is to ensure our map keys are actually of type Dependency not DependencyFile
-    guaranteedPersistedDeps.stream().map(Dependency::new).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
-    removedDeps.stream().map(Dependency::new).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
+    guaranteedPersistedDeps.stream().map(Dependency::copy).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
+    removedDeps.stream().map(Dependency::copy).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
     try {
       this.jdbcDependencyManager.updateValidationStatuses(depValidationStatuses, validationKey);
     } catch (SQLException e) {
@@ -205,13 +208,13 @@ public class ArchiveUnthinner {
     final Set<DependencyFile> downloadedFiles = new HashSet();
     for (Dependency d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
-      DependencyFile downloadedDependency = new DependencyFile(downloadedJar, d);
       try {
+        DependencyFile downloadedDependency = new DependencyFile(downloadedJar, d);
         this.dependencyDownloader.downloadDependency(downloadedDependency, DownloadOrigin.REMOTE);
-      } catch (IOException | HashNotMatchException e) {
+        downloadedFiles.add(downloadedDependency);
+      } catch (IOException | HashNotMatchException | InvalidHashException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
       }
-      downloadedFiles.add(downloadedDependency);
     }
     return downloadedFiles;
   }

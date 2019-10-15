@@ -74,4 +74,30 @@ public class HashUtilsTest {
     assertEquals(SAMPLE_STR_MD5.toLowerCase(),
         HashUtils.bytesHashToString(HashUtils.stringHashToBytes(SAMPLE_STR_MD5)));
   }
+
+  @Test
+  public void sanitizeValidMD5() throws Exception {
+    assertEquals(SAMPLE_STR_MD5.toLowerCase(), HashUtils.MD5.sanitizeHashStr(SAMPLE_STR_MD5));
+  }
+
+  @Test
+  public void sanitizeValidSHA1() throws Exception {
+    assertEquals(SAMPLE_STR_SHA1.toLowerCase(), HashUtils.SHA1.sanitizeHashStr(SAMPLE_STR_SHA1));
+  }
+
+  @Test(expected = InvalidHashException.class)
+  public void sanitizeInvalidCharacterHash() throws Exception {
+    String md5WithInvalidFirstCharacter = "'" + SAMPLE_STR_MD5.substring(1);
+    HashUtils.MD5.sanitizeHashStr(md5WithInvalidFirstCharacter);
+  }
+
+  @Test(expected = InvalidHashException.class)
+  public void sanitizeTooLongMD5() throws Exception {
+    HashUtils.MD5.sanitizeHashStr(SAMPLE_STR_MD5 + "A");
+  }
+
+  @Test(expected = InvalidHashException.class)
+  public void sanitizeTooLongSHA1() throws Exception {
+    HashUtils.SHA1.sanitizeHashStr(SAMPLE_STR_SHA1 + "A");
+  }
 }

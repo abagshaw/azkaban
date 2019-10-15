@@ -4,6 +4,8 @@ import azkaban.db.DatabaseOperator;
 import azkaban.spi.Dependency;
 import azkaban.spi.Storage;
 import azkaban.spi.FileValidationStatus;
+import azkaban.utils.HashUtils;
+import azkaban.utils.InvalidHashException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -85,7 +87,7 @@ public class JdbcDependencyManager {
     this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?, ?)", rowsToInsert);
   }
 
-  private String makeStrWithQuestionMarks(final int num) {
+  private static String makeStrWithQuestionMarks(final int num) {
     StringBuilder builder = new StringBuilder();
     for(int i = 0; i < num; i++) {
       builder.append("?,");

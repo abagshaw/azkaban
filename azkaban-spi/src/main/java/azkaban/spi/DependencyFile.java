@@ -1,5 +1,6 @@
 package azkaban.spi;
 
+import azkaban.utils.InvalidHashException;
 import java.io.File;
 import java.util.Objects;
 
@@ -7,7 +8,9 @@ import java.util.Objects;
 public class DependencyFile extends Dependency {
   private File file;
 
-  public DependencyFile(File f, Dependency d) {
+  // NOTE: This should NEVER throw InvalidHashException because the input dependency
+  // must have already had its cache validated upon instantiation
+  public DependencyFile(File f, Dependency d) throws InvalidHashException {
     super(d.getFileName(), d.getDestination(), d.getType(), d.getIvyCoordinates(), d.getSHA1());
     this.file = f;
   }

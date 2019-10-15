@@ -1,5 +1,7 @@
 package azkaban.spi;
 
+import azkaban.utils.HashUtils;
+import azkaban.utils.InvalidHashException;
 import java.util.Map;
 import java.util.Objects;
 import org.codehaus.jackson.annotate.JsonProperty;
@@ -12,24 +14,34 @@ public class Dependency {
   private final String ivyCoordinates;
   private final String sha1;
 
-  public Dependency(String fileName, String destination, String type, String ivyCoordinates, String sha1) {
+  public Dependency(String fileName, String destination, String type, String ivyCoordinates, String sha1)
+      throws InvalidHashException {
     this.fileName = fileName;
     this.destination = destination;
     this.type = type;
     this.ivyCoordinates = ivyCoordinates;
-    this.sha1 = sha1;
+    this.sha1 = HashUtils.SHA1.sanitizeHashStr(sha1);
   }
 
-  public Dependency(Map<String, String> m) {
+  public Dependency(Map<String, String> m) throws InvalidHashException {
     this(m.get("file"), m.get("destination"), m.get("type"), m.get("ivyCoordinates"), m.get("sha1"));
   }
 
-  public Dependency(Dependency d) {
-    this(d.getFileName(), d.getDestination(), d.getType(), d.getIvyCoordinates(), d.getSHA1());
+  public Dependency copy() {
+    try {
+      return new Dependency(getFileName(), getDestination(), getType(), getIvyCoordinates(), getSHA1());
+    } catch (InvalidHashException e) {
+      // This should never happen because we already validated the hash when creating this dependency
+      throw new RuntimeException("InvalidHashException when copying dependency.");
+    }
   }
 
+  // it makes much more sense for the getter to be getFileName vs getFile, but in the startup-dependencies.json
+  // spec we expect the property to be "file" not "fileName" so we have to annotate this to tell the JSON serializer
+  // to insert it with "file", instead of assuming the name based on the name of the getter like it usually does.
   @JsonProperty("file")
   public String getFileName() { return fileName; }
+
   public String getDestination() { return destination; }
   public String getType() { return type; }
   public String getIvyCoordinates() { return ivyCoordinates; }

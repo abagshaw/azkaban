@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,13 +26,17 @@ public class ThinArchiveUtils {
     return new DependencyFile(new File(projectFolder, d.getDestination() + File.separator + d.getFileName()), d);
   }
 
-  public static Set<Dependency> parseStartupDependencies(final File f) throws IOException {
+  public static Set<Dependency> parseStartupDependencies(final File f) throws IOException, InvalidHashException {
     final String rawJson = FileUtils.readFileToString(f);
-    return ((HashMap<String, List<Map<String, String>>>)
-        JSONUtils.parseJSONFromString(rawJson))
-        .get("dependencies")
-        .stream().map(Dependency::new)
-        .collect(Collectors.toSet());
+    List<Map<String, String>> rawParseResult =
+        ((HashMap<String, List<Map<String, String>>>) JSONUtils.parseJSONFromString(rawJson)).get("dependencies");
+
+    Set<Dependency> finalDependencies = new HashSet<>();
+    for (Map<String, String> rawDependency : rawParseResult) {
+      finalDependencies.add(new Dependency(rawDependency));
+    }
+
+    return finalDependencies;
   }
 
   public static void writeStartupDependencies(final File f,

@@ -42,7 +42,7 @@ public enum HashUtils {
 
   private static final int BYTE_BUFFER_SIZE = 1024;
 
-  HashUtils(String type) {
+  HashUtils(final String type) {
     this.type = type;
   }
 
@@ -93,19 +93,41 @@ public enum HashUtils {
     return digest.digest();
   }
 
-  public static boolean isSameHash(String a, byte[] b) throws DecoderException {
+  /**
+   * Validates and sanitizes a hash string. Ensures the hash does not include any non-alphanumeric characters
+   * and ensures it is the correct length for its type. If the hash is valid, a lowercase version is returned.
+   *
+   * @param raw raw hash string
+   * @return lowercase raw hash string
+   * @throws InvalidHashException if the hash is invalid for any of the reasons described above.
+   */
+  public String sanitizeHashStr(final String raw) throws InvalidHashException {
+    if (!raw.matches("^[a-zA-Z0-9]*$")) {
+      throw new InvalidHashException(
+          String.format("Hash %s has invalid characters.", raw, raw.length()));
+    } else if (this.type.equals("MD5") && raw.length() != 32) {
+      throw new InvalidHashException(
+          String.format("MD5 hash %s has incorrect length %d, expected 32", raw, raw.length()));
+    } else if (this.type.equals("SHA1") && raw.length() != 40) {
+      throw new InvalidHashException(
+          String.format("SHA1 hash %s has incorrect length %d, expected 40", raw, raw.length()));
+    }
+    return raw.toLowerCase();
+  }
+
+  public static boolean isSameHash(final String a, final byte[] b) throws DecoderException {
     return isSameHash(stringHashToBytes(a), b);
   }
 
-  public static boolean isSameHash(byte[] a, byte[] b) {
+  public static boolean isSameHash(final byte[] a, final byte[] b) {
     return Arrays.equals(a, b);
   }
 
-  public static byte[] stringHashToBytes(String a) throws DecoderException {
+  public static byte[] stringHashToBytes(final String a) throws DecoderException {
     return Hex.decodeHex(a.toCharArray());
   }
 
-  public static String bytesHashToString(byte[] a) {
+  public static String bytesHashToString(final byte[] a) {
     return String.valueOf(Hex.encodeHex(a)).toLowerCase();
   }
 }
