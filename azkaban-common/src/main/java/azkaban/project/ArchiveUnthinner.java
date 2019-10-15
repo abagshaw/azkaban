@@ -31,7 +31,9 @@ import org.slf4j.LoggerFactory;
 
 import static azkaban.utils.ThinArchiveUtils.*;
 
-
+/**
+ * Handles processing of uploaded Thin Archives to the web server.
+ */
 public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
 
@@ -51,11 +53,19 @@ public class ArchiveUnthinner {
     this.dependencyDownloader = dependencyDownloader;
   }
 
+  /**
+   * @param project current project
+   * @param projectFolder current project folder
+   * @param startupDependenciesFile startup-dependencies.json file for this project
+   * @param additionalValidatorProps additional props for the validator
+   *
+   * @return Map of Report Name -> Validation Report
+   */
   public Map<String, ValidationReport> validateProjectAndPersistDependencies(final Project project,
-      final File projectFolder, final File startupDependenciesFile, final Props additionalProps) {
+      final File projectFolder, final File startupDependenciesFile, final Props additionalValidatorProps) {
     Set<Dependency> dependencies = getDependenciesFromSpec(startupDependenciesFile);
 
-    String validationKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalProps);
+    String validationKey = this.validatorUtils.getCacheKey(project, projectFolder, additionalValidatorProps);
 
     // Find the cached validation status (or NEW if the dep isn't cached) for each dependency.
     Map<Dependency, FileValidationStatus> depsToValidationStatus = getValidationStatuses(dependencies, validationKey);
@@ -70,7 +80,7 @@ public class ArchiveUnthinner {
     final Set<DependencyFile> downloadedDeps = downloadDependencyFiles(projectFolder, newDeps);
 
     // Validate the project
-    Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder, additionalProps);
+    Map<String, ValidationReport> reports = this.validatorUtils.validateProject(project, projectFolder, additionalValidatorProps);
     if (reports.values().stream().anyMatch(r -> r.getStatus() == ValidationStatus.ERROR)) {
       // No point continuing, this project has been rejected, so just return the validation report
       // and don't waste any more time.
