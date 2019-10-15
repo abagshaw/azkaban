@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
 
 
 public class ThinArchiveUtils {
@@ -49,25 +50,27 @@ public class ThinArchiveUtils {
   }
 
   /**
-   * Taking a list of file paths of jars within a project folder, if the project has a startup-dependencies.json
-   * file (therefore is from a thin archive) each file path will be compared against the cached dependencies listed
-   * in startup-dependencies.json. If a match is found, the file path will be replaced with a hdfs:// path to the
-   * cached dependency. If a match is not found, the original local file path will be included in the returned list.
-   * IF the project does not have a startup-dependencies.json file (is not a thin archive) - the list of file paths
-   * passed in will be returned without modification.
+   * Taking a string with comma seperated file paths of jars within a project folder, if the project has a
+   * startup-dependencies.json file (therefore is from a thin archive) each file path will be compared against the
+   * cached dependencies listed in startup-dependencies.json. If a match is found, the file path will be replaced
+   * with a hdfs:// path to the cached dependency. If a match is not found, the original local file path will be
+   * included in the returned comma separated list. IF the project does not have a startup-dependencies.json file
+   * (is not a thin archive) - the string of file paths passed in will be returned without modification.
    *
    * @param projectFolder root folder of uncompressed project
-   * @param localDependencies list of file path strings to jar dependencies within the project folder
+   * @param localJarSpec string of comma separated file paths to jar dependencies within the project folder
    * @param systemProps system props
    * @return list of file path strings and hdfs:// path strings, one for each dependency
    */
-  public static List<String> replaceLocalPathsWithStoragePaths(final File projectFolder,
-      final List<String> localDependencies, final Props systemProps) {
+  public static String replaceLocalPathsWithStoragePaths(final File projectFolder,
+      String localJarSpec, final Props systemProps, final Logger log) {
     File startupDependenciesFile = getStartupDependenciesFile(projectFolder);
     if (!startupDependenciesFile.exists()) {
       // This is not a thin archive - so we can't do any replacing
-      return localDependencies;
+      return localJarSpec;
     }
+
+    String[] localDependencies = localJarSpec.split(",");
 
     try {
       Set<Dependency> startupDeps = parseStartupDependencies(startupDependenciesFile);
@@ -100,10 +103,12 @@ public class ThinArchiveUtils {
         }
       }
 
-      return finalDependencies;
+      String localAndRemoteJarSpec = String.join(",", finalDependencies);
+      log.debug("replaceLocalPathsWithStoragePaths: localAndRemoteJarSpec: " + localAndRemoteJarSpec);
+      return localAndRemoteJarSpec;
     } catch (IOException e) {
-      // If something goes wrong, swallow the error and just return the local dependencies list.
-      return localDependencies;
+      // If something goes wrong, swallow the error and just return the original string.
+      return localJarSpec;
     }
   }
 

@@ -26,16 +26,29 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
 
 public class ThinArchiveUtilsTest {
   @Rule
   public final TemporaryFolder TEMP_DIR = new TemporaryFolder();
+
+  private static final String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
+
+  private Logger log;
+
+  @Before
+  public void setup() {
+    log = mock(Logger.class);
+  }
 
   @Test
   public void testGetStartupDependenciesFile() throws Exception {
@@ -91,8 +104,6 @@ public class ThinArchiveUtilsTest {
     Dependency depA = ThinArchiveTestUtils.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
-    String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
-
     Props props = new Props();
     props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
 
@@ -111,15 +122,17 @@ public class ThinArchiveUtilsTest {
     List<String> jarPaths = new ArrayList<>();
     jarPaths.add(depAFile.getCanonicalPath());
     jarPaths.add(otherRandomJar.getCanonicalPath());
+    String jarPathsStr = String.join(",", jarPaths);
 
-    List<String> resultingJarPaths = ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPaths, props);
+    String resultingJarPathsStr =
+        ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPathsStr, props, log);
 
+    List<String> expectedJarPaths = new ArrayList<>();
+    expectedJarPaths.add(HDFS_DEP_PREFIX + ThinArchiveUtils.convertIvyCoordinateToPath(depA));
+    expectedJarPaths.add(jarPaths.get(1));
+    String expectedJarPathsStr = String.join(",", expectedJarPaths);
 
-    List<String> expectedResultingJarPaths = new ArrayList<>();
-    expectedResultingJarPaths.add(HDFS_DEP_PREFIX + ThinArchiveUtils.convertIvyCoordinateToPath(depA));
-    expectedResultingJarPaths.add(jarPaths.get(1));
-
-    assertEquals(expectedResultingJarPaths, resultingJarPaths);
+    assertEquals(expectedJarPathsStr, resultingJarPathsStr);
   }
 
   @Test
@@ -131,8 +144,6 @@ public class ThinArchiveUtilsTest {
     Dependency depA = ThinArchiveTestUtils.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
 
-    String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
-
     Props props = new Props();
     props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
 
@@ -142,13 +153,16 @@ public class ThinArchiveUtilsTest {
 
     List<String> jarPaths = new ArrayList<>();
     jarPaths.add(depAFile.getCanonicalPath());
+    String jarPathsStr = String.join(",", jarPaths);
 
-    List<String> expectedResultingJarPaths = new ArrayList<>();
-    expectedResultingJarPaths.add(jarPaths.get(0));
+    List<String> expectedJarPaths = new ArrayList<>();
+    expectedJarPaths.add(jarPaths.get(0));
+    String expectedJarPathsStr = String.join(",", expectedJarPaths);
 
-    List<String> resultingJarPaths = ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPaths, props);
+    String resultingJarPathsStr =
+        ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPathsStr, props, log);
 
-    assertEquals(expectedResultingJarPaths, resultingJarPaths);
+    assertEquals(expectedJarPathsStr, resultingJarPathsStr);
   }
 
   @Test
@@ -158,8 +172,6 @@ public class ThinArchiveUtilsTest {
 
     Dependency depA = ThinArchiveTestUtils.getDepA();
     File projectDir = TEMP_DIR.newFolder("sample_proj");
-
-    String HDFS_DEP_PREFIX = "hdfs://some/cool/place/";
 
     Props props = new Props();
     props.put(Storage.DEPENDENCY_STORAGE_PATH_PREFIX_PROP, HDFS_DEP_PREFIX);
@@ -174,13 +186,17 @@ public class ThinArchiveUtilsTest {
 
     List<String> jarPaths = new ArrayList<>();
     jarPaths.add(depAFile.getCanonicalPath());
+    String jarPathsStr = String.join(",", jarPaths);
 
-    List<String> expectedResultingJarPaths = new ArrayList<>();
-    expectedResultingJarPaths.add(jarPaths.get(0));
+    List<String> expectedJarPaths = new ArrayList<>();
+    expectedJarPaths.add(jarPaths.get(0));
+    String expectedJarPathsStr = String.join(",", expectedJarPaths);
 
-    List<String> resultingJarPaths = ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPaths, props);
+    Logger log = mock(Logger.class);
+    String resultingJarPathsStr =
+        ThinArchiveUtils.replaceLocalPathsWithStoragePaths(projectDir, jarPathsStr, props, log);
 
-    assertEquals(expectedResultingJarPaths, resultingJarPaths);
+    assertEquals(expectedJarPathsStr, resultingJarPathsStr);
   }
 
   @Test
