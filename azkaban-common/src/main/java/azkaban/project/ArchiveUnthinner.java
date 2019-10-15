@@ -191,9 +191,9 @@ public class ArchiveUnthinner {
     // removedDeps are new dependencies that we have just validated and found to be REMOVED and are NOT persisted
     // to storage.
     Map<Dependency, FileValidationStatus> depValidationStatuses = new HashMap<>();
-    // NOTE: .map(Dependency::new) is to ensure our map keys are actually of type Dependency not DependencyFile
-    guaranteedPersistedDeps.stream().map(Dependency::copy).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
-    removedDeps.stream().map(Dependency::copy).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
+    // NOTE: .map(Dependency::makeCopy) is to ensure our map keys are actually of type Dependency not DependencyFile
+    guaranteedPersistedDeps.stream().map(Dependency::makeCopy).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.VALID));
+    removedDeps.stream().map(Dependency::makeCopy).forEach(d -> depValidationStatuses.put(d, FileValidationStatus.REMOVED));
     try {
       this.jdbcDependencyManager.updateValidationStatuses(depValidationStatuses, validationKey);
     } catch (SQLException e) {
@@ -208,13 +208,13 @@ public class ArchiveUnthinner {
     final Set<DependencyFile> downloadedFiles = new HashSet();
     for (Dependency d : toDownload) {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
+      DependencyFile downloadedDependency = d.makeDependencyFile(downloadedJar);
       try {
-        DependencyFile downloadedDependency = new DependencyFile(downloadedJar, d);
         this.dependencyDownloader.downloadDependency(downloadedDependency, DownloadOrigin.REMOTE);
-        downloadedFiles.add(downloadedDependency);
-      } catch (IOException | HashNotMatchException | InvalidHashException e) {
+      } catch (IOException | HashNotMatchException e) {
         throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
       }
+      downloadedFiles.add(downloadedDependency);
     }
     return downloadedFiles;
   }

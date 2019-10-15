@@ -104,7 +104,7 @@ public enum HashUtils {
   public String sanitizeHashStr(final String raw) throws InvalidHashException {
     if (!raw.matches("^[a-zA-Z0-9]*$")) {
       throw new InvalidHashException(
-          String.format("Hash %s has invalid characters.", raw, raw.length()));
+          String.format("Hash %s has invalid characters. Should be only alphanumeric.", raw));
     } else if (this.type.equals("MD5") && raw.length() != 32) {
       throw new InvalidHashException(
           String.format("MD5 hash %s has incorrect length %d, expected 32", raw, raw.length()));

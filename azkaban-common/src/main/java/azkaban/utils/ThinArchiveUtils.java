@@ -23,7 +23,7 @@ public class ThinArchiveUtils {
   }
 
   public static DependencyFile getDependencyFile(final File projectFolder, final Dependency d) {
-    return new DependencyFile(new File(projectFolder, d.getDestination() + File.separator + d.getFileName()), d);
+    return d.makeDependencyFile(new File(projectFolder, d.getDestination() + File.separator + d.getFileName()));
   }
 
   public static Set<Dependency> parseStartupDependencies(final File f) throws IOException, InvalidHashException {
@@ -111,8 +111,9 @@ public class ThinArchiveUtils {
       String localAndRemoteJarSpec = String.join(",", finalDependencies);
       log.debug("replaceLocalPathsWithStoragePaths: localAndRemoteJarSpec: " + localAndRemoteJarSpec);
       return localAndRemoteJarSpec;
-    } catch (IOException e) {
+    } catch (IOException | InvalidHashException e) {
       // If something goes wrong, swallow the error and just return the original string.
+      log.warn("Error while opening and parsing startup dependencies file " + startupDependenciesFile.getAbsolutePath());
       return localJarSpec;
     }
   }

@@ -134,7 +134,7 @@ public class HdfsStorageTest {
     // Indicate that the file does not exist
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenThrow(new FileNotFoundException());
 
-    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
     assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
     verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
@@ -147,7 +147,7 @@ public class HdfsStorageTest {
     // Indicate that the file exists and is finalized (closed and not being written to)
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(true);
 
-    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
     assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
     // Because the dependency already exists, NO attempt should be made to persist it.
@@ -161,7 +161,7 @@ public class HdfsStorageTest {
     // Indicate that the file exists but is being currently written to
     when(this.dfs.isFileClosed(EXPECTED_PATH_DEP_A)).thenReturn(false);
 
-    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
     assertEquals(FileIOStatus.OPEN, this.hdfsStorage.putDependency(depFile));
 
     // Because the dependency already exists, NO attempt should be made to persist it.
@@ -181,7 +181,7 @@ public class HdfsStorageTest {
     doThrow(new org.apache.hadoop.fs.FileAlreadyExistsException("Uh oh :("))
         .when(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
 
-    DependencyFile depFile = new DependencyFile(tmpEmptyJar, DEP_A);
+    DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
 
     // We expect putDependency to return a FileStatus of OPEN because, while it's POSSIBLE that the
     // other process completed writing to the file and the file status is actually CLOSED, we'll play it safe

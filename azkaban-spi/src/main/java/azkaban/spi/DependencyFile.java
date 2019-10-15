@@ -10,8 +10,9 @@ public class DependencyFile extends Dependency {
 
   // NOTE: This should NEVER throw InvalidHashException because the input dependency
   // must have already had its cache validated upon instantiation
-  public DependencyFile(File f, Dependency d) throws InvalidHashException {
-    super(d.getFileName(), d.getDestination(), d.getType(), d.getIvyCoordinates(), d.getSHA1());
+  public DependencyFile(File f, String fileName, String destination, String type, String ivyCoordinates, String sha1)
+      throws InvalidHashException {
+    super(fileName, destination, type, ivyCoordinates, sha1);
     this.file = f;
   }
 

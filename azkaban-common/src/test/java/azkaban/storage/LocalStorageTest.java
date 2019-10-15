@@ -120,7 +120,7 @@ public class LocalStorageTest {
   public void testPutGetExistsDependency() throws Exception {
     final File tmpJar = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
     FileUtils.writeStringToFile(tmpJar, ThinArchiveTestUtils.getDepAContent());
-    DependencyFile depFile = new DependencyFile(tmpJar, ThinArchiveTestUtils.getDepA());
+    DependencyFile depFile = ThinArchiveTestUtils.getDepA().makeDependencyFile(tmpJar);
 
     assertEquals(FileIOStatus.CLOSED, this.localStorage.putDependency(depFile));
     final File expectedTargetFile = new File(BASE_DIRECTORY, LocalStorage.DEPENDENCY_FOLDER

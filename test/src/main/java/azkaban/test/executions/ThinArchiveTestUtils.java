@@ -101,7 +101,7 @@ public class ThinArchiveTestUtils {
 
   private static String depAJSONBlock() {
     return "{" +
-        "    \"sha1\": \"131BD316A77423E6B80D93262B576C139C72B4C3\"," +
+        "    \"sha1\": \"131bd316a77423e6b80d93262b576c139c72b4c3\"," +
         "    \"file\": \"aaaa.jar\"," +
         "    \"destination\": \"lib\"," +
         "    \"type\": \"jar\"," +
@@ -111,7 +111,7 @@ public class ThinArchiveTestUtils {
 
   private static String depBJSONBlock() {
     return "{" +
-        "    \"sha1\": \"9461919846E1E7C8FC74FEE95AA6AC74993BE71E\"," +
+        "    \"sha1\": \"9461919846e1e7c8fc74fee95aa6ac74993be71e\"," +
         "    \"file\": \"bbbb.jar\"," +
         "    \"destination\": \"lib\"," +
         "    \"type\": \"jar\"," +
@@ -121,7 +121,7 @@ public class ThinArchiveTestUtils {
 
   private static String depCJSONBlock() {
     return "{" +
-        "    \"sha1\": \"F873F39163F5B43DBF1FEE63CBCE284074896221\"," +
+        "    \"sha1\": \"f873f39163f5b43dbf1fee63cbce284074896221\"," +
         "    \"file\": \"cccc.jar\"," +
         "    \"destination\": \"lib\"," +
         "    \"type\": \"jar\"," +
@@ -140,7 +140,7 @@ public class ThinArchiveTestUtils {
           "lib",
           "jar",
           "com.linkedin.test:testeraaaa:1.0.1",
-          "131BD316A77423E6B80D93262B576C139C72B4C3");
+          "131bd316a77423e6b80d93262b576c139c72b4c3");
     } catch (Exception e) {
       // This will never happen
       throw new RuntimeException("Test utils tried to create a dependency with an invalid hash.");
@@ -158,7 +158,7 @@ public class ThinArchiveTestUtils {
         "lib",
         "jar",
         "com.linkedin.test:testerbbbb:1.0.1",
-        "9461919846E1E7C8FC74FEE95AA6AC74993BE71E");
+        "9461919846e1e7c8fc74fee95aa6ac74993be71e");
     } catch (Exception e) {
       // This will never happen
       throw new RuntimeException("Test utils tried to create a dependency with an invalid hash.");
@@ -176,7 +176,7 @@ public class ThinArchiveTestUtils {
           "lib",
           "jar",
           "com.linkedin.test:testercccc:1.0.1",
-          "F873F39163F5B43DBF1FEE63CBCE284074896221");
+          "f873f39163f5b43dbf1fee63cbce284074896221");
     } catch (Exception e) {
       // This will never happen
       throw new RuntimeException("Test utils tried to create a dependency with an invalid hash.");

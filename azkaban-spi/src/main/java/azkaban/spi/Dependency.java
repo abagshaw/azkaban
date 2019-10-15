@@ -2,6 +2,7 @@ package azkaban.spi;
 
 import azkaban.utils.HashUtils;
 import azkaban.utils.InvalidHashException;
+import java.io.File;
 import java.util.Map;
 import java.util.Objects;
 import org.codehaus.jackson.annotate.JsonProperty;
@@ -27,9 +28,29 @@ public class Dependency {
     this(m.get("file"), m.get("destination"), m.get("type"), m.get("ivyCoordinates"), m.get("sha1"));
   }
 
-  public Dependency copy() {
+  /**
+   * Make a copy of this dependency
+   *
+   * @return a copy of this dependency
+   */
+  public Dependency makeCopy() {
     try {
       return new Dependency(getFileName(), getDestination(), getType(), getIvyCoordinates(), getSHA1());
+    } catch (InvalidHashException e) {
+      // This should never happen because we already validated the hash when creating this dependency
+      throw new RuntimeException("InvalidHashException when copying dependency.");
+    }
+  }
+
+  /**
+   * Make a new DependencyFile with the same details as this dependency
+   *
+   * @param f file for DependencyFile
+   * @return the new DependencyFile
+   */
+  public DependencyFile makeDependencyFile(File f) {
+    try {
+      return new DependencyFile(f, getFileName(), getDestination(), getType(), getIvyCoordinates(), getSHA1());
     } catch (InvalidHashException e) {
       // This should never happen because we already validated the hash when creating this dependency
       throw new RuntimeException("InvalidHashException when copying dependency.");

@@ -30,6 +30,7 @@ import azkaban.storage.ProjectStorageManager;
 import azkaban.utils.DependencyDownloader;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.HashNotMatchException;
+import azkaban.utils.InvalidHashException;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -232,13 +233,23 @@ class FlowPreparer {
   }
 
   /**
-   * Download nessecary JAR dependencies from storage as specified in archive's /app-meta/startup-dependencies.json
+   * Download necessary JAR dependencies from storage as specified in archive's /app-meta/startup-dependencies.json
    *
    * @param folder root of unzipped project
    * @throws IOException if downloading JARs or reading startup-dependencies.json fails
    */
   private void downloadAllDependencies(final File folder, final File startupDependencies) throws IOException {
-    final Set<Dependency> dependencies = parseStartupDependencies(startupDependencies);
+    final Set<Dependency> dependencies;
+    try {
+      dependencies = parseStartupDependencies(startupDependencies);
+    } catch (InvalidHashException e) {
+      // This should never happen because the webserver should fail to upload if the startup-dependencies.json
+      // file had an invalid hash.
+      LOGGER.error(
+          "Failed to load {} due to one or more dependencies listing malformed hashes. {}",
+          startupDependencies.getAbsolutePath(), e);
+      throw new IOException(e);
+    }
 
     // Download each of the dependencies from storage
     LOGGER.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));

@@ -39,6 +39,9 @@ public class DependencyDownloaderTest {
   public Storage storage;
   public Props props;
 
+  public File destinationFile;
+  public DependencyFile dep;
+
   @Before
   public void setup() throws Exception {
     this.props = new Props();
@@ -47,15 +50,15 @@ public class DependencyDownloaderTest {
 
     depAFullUrl = new URL(new URL(DOWNLOAD_BASE_URL), ThinArchiveTestUtils.getDepAPath());
 
+    destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
+    dep = ThinArchiveTestUtils.getDepA().makeDependencyFile(destinationFile);
+
     dependencyDownloader = new DependencyDownloader(this.props, this.storage);
   }
 
   @Test
   public void testDownloadDependencySuccessREMOTE() throws Exception {
     PowerMockito.mockStatic(FileDownloaderUtils.class);
-
-    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
-    DependencyFile dep = new DependencyFile(destinationFile, ThinArchiveTestUtils.getDepA());
 
     // When FileDownloaderUtils.downloadToFile() is called, write the content to the file as if it was downloaded
     PowerMockito.doAnswer((Answer) invocation -> {
@@ -72,9 +75,6 @@ public class DependencyDownloaderTest {
 
   @Test
   public void testDownloadDependencySuccessSTORAGE() throws Exception {
-    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
-    DependencyFile dep = new DependencyFile(destinationFile, ThinArchiveTestUtils.getDepA());
-
     // When FileDownloaderUtils.downloadToFile() is called, write the content to the file as if it was downloaded
     doAnswer((Answer<InputStream>) invocation -> {
       File tmpFile = TEMP_DIR.newFile("tmpdepa.jar");
@@ -91,9 +91,6 @@ public class DependencyDownloaderTest {
   public void testDownloadDependencyHashInvalidOneRetryREMOTE() throws Exception {
     final AtomicInteger countCall = new AtomicInteger();
     PowerMockito.mockStatic(FileDownloaderUtils.class);
-
-    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
-    DependencyFile dep = new DependencyFile(destinationFile, ThinArchiveTestUtils.getDepA());
 
     // When FileDownloaderUtils.downloadToFile() is called, write the content to the file as if it was downloaded
     PowerMockito.doAnswer((Answer) invocation -> {
@@ -117,9 +114,6 @@ public class DependencyDownloaderTest {
   @Test
   public void testDownloadDependencyHashInvalidRetryExceededFailREMOTE() throws Exception {
     PowerMockito.mockStatic(FileDownloaderUtils.class);
-
-    File destinationFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
-    DependencyFile dep = new DependencyFile(destinationFile, ThinArchiveTestUtils.getDepA());
 
     // When FileDownloaderUtils.downloadToFile() is called, write the content to the file as if it was downloaded
     PowerMockito.doAnswer((Answer) invocation -> {

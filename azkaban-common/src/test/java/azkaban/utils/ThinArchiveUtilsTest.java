@@ -63,10 +63,10 @@ public class ThinArchiveUtilsTest {
     File someFolder = TEMP_DIR.newFolder("someproject");
 
     DependencyFile dependencyFile = ThinArchiveUtils.getDependencyFile(someFolder, ThinArchiveTestUtils.getDepA());
-    DependencyFile expectedDependencyFile = new DependencyFile(
+    DependencyFile expectedDependencyFile = ThinArchiveTestUtils.getDepA().makeDependencyFile(
         new File(someFolder, ThinArchiveTestUtils.getDepA().getDestination()
         + File.separator
-        + ThinArchiveTestUtils.getDepA().getFileName()), ThinArchiveTestUtils.getDepA());
+        + ThinArchiveTestUtils.getDepA().getFileName()));
 
     assertEquals(expectedDependencyFile, dependencyFile);
   }
@@ -201,9 +201,9 @@ public class ThinArchiveUtilsTest {
 
   @Test
   public void testValidateDependencyHashValid() throws Exception {
-    File depFile = TEMP_DIR.newFile("dep.jar");
+    File depFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
     FileUtils.writeStringToFile(depFile, ThinArchiveTestUtils.getDepAContent());
-    DependencyFile f = new DependencyFile(depFile, ThinArchiveTestUtils.getDepA());
+    DependencyFile f = ThinArchiveTestUtils.getDepA().makeDependencyFile(depFile);
 
     // This should complete without an exception
     ThinArchiveUtils.validateDependencyHash(f);
@@ -212,7 +212,6 @@ public class ThinArchiveUtilsTest {
   @Test(expected = HashNotMatchException.class)
   public void testValidateDependencyHashInvalid() throws Exception {
     File depFile = TEMP_DIR.newFile("dep.jar");
-    String depFileHash = HashUtils.SHA1.getHashStr(depFile);
 
     Dependency details = new Dependency(
         "dep.jar",
@@ -220,7 +219,7 @@ public class ThinArchiveUtilsTest {
         "jar",
         "com.linkedin.test:blahblah:1.0.1",
         "73f018101ec807672cd3b06d5d7a0fc48f54428f"); // This is not the hash of depFile
-    DependencyFile f = new DependencyFile(depFile, details);
+    DependencyFile f = details.makeDependencyFile(depFile);
 
     // This should throw an exception because the hashes don't match
     ThinArchiveUtils.validateDependencyHash(f);
