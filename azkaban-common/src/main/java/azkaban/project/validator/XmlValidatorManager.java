@@ -230,7 +230,8 @@ public class XmlValidatorManager implements ValidatorManager {
     for (final Entry<String, ProjectValidator> validator : this.validators.entrySet()) {
       try {
         // Attempt to cast to ProjectValidatorCacheable
-        compoundedKey.append(((ProjectValidatorCacheable) validator.getValue()).getCacheKey(project, projectDir, props));
+        ProjectValidatorCacheable cacheableValidator = (ProjectValidatorCacheable) validator.getValue();
+        compoundedKey.append(cacheableValidator.getCacheKey(project, projectDir, props));
       } catch (ClassCastException e) {
         // Swallow this error - the validator must not have been a cacheable validator
       }
