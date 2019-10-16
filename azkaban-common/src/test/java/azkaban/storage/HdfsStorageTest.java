@@ -137,6 +137,7 @@ public class HdfsStorageTest {
     DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
     assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
+    verify(this.hdfs).mkdirs(EXPECTED_PATH_DEP_A.getParent());
     verify(this.hdfs).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
   }
 
@@ -150,7 +151,8 @@ public class HdfsStorageTest {
     DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
     assertEquals(FileIOStatus.CLOSED, this.hdfsStorage.putDependency(depFile));
 
-    // Because the dependency already exists, NO attempt should be made to persist it.
+    // Because the dependency already exists, NO attempt should be made to persist it OR create its parent directories.
+    verify(this.hdfs, never()).mkdirs(EXPECTED_PATH_DEP_A.getParent());
     verify(this.hdfs, never()).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
   }
 
@@ -164,7 +166,8 @@ public class HdfsStorageTest {
     DependencyFile depFile = DEP_A.makeDependencyFile(tmpEmptyJar);
     assertEquals(FileIOStatus.OPEN, this.hdfsStorage.putDependency(depFile));
 
-    // Because the dependency already exists, NO attempt should be made to persist it.
+    // Because the dependency already exists, NO attempt should be made to persist it OR create its parent directories.
+    verify(this.hdfs, never()).mkdirs(EXPECTED_PATH_DEP_A.getParent());
     verify(this.hdfs, never()).copyFromLocalFile(new Path(tmpEmptyJar.getAbsolutePath()), EXPECTED_PATH_DEP_A);
   }
 
@@ -187,6 +190,9 @@ public class HdfsStorageTest {
     // other process completed writing to the file and the file status is actually CLOSED, we'll play it safe
     // and assume it is OPEN to ensure consuming methods know not to rely on the file being persisted to HDFS.
     assertEquals(FileIOStatus.OPEN, this.hdfsStorage.putDependency(depFile));
+
+    // We expect an attempt to still be made to create the parent directories for the dependency.
+    verify(this.hdfs).mkdirs(EXPECTED_PATH_DEP_A.getParent());
   }
 
   @Test

@@ -254,7 +254,12 @@ class FlowPreparer {
     // Download each of the dependencies from storage
     LOGGER.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
     for (Dependency d : dependencies) {
-      downloadDependency(folder, d);
+      try {
+        downloadDependency(folder, d);
+      } catch (IOException e) {
+        LOGGER.error(String.format("FAILED to download JAR dependency: %s", d.getFileName()));
+        throw e;
+      }
     }
     LOGGER.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
   }

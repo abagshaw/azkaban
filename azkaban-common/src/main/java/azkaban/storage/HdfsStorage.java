@@ -137,7 +137,7 @@ public class HdfsStorage implements Storage {
       // Copy file to HDFS
       final Path targetPath = getDependencyPath(f);
       log.info(String.format("Uploading dependency to HDFS: %s -> %s", f.getFileName(), targetPath));
-      this.hdfs.mkdirs(targetPath);
+      this.hdfs.mkdirs(targetPath.getParent());
       this.hdfs.copyFromLocalFile(new Path(f.getFile().getAbsolutePath()), targetPath);
     } catch (final org.apache.hadoop.fs.FileAlreadyExistsException e) {
       // Either the file already exists, OR another web server process is uploading it
