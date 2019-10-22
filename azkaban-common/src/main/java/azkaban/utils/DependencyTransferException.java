@@ -1,5 +1,8 @@
 package azkaban.utils;
 
+/**
+ * Indicates that a dependency failed to successfully upload or download.
+ */
 public class DependencyTransferException extends RuntimeException {
   public DependencyTransferException() {
     super();
