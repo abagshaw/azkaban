@@ -30,6 +30,35 @@ import static azkaban.utils.ThinArchiveUtils.*;
 
 /**
  * Handles processing of uploaded Thin Archives to the web server.
+ *
+ * This class exposes one public function, validateProjectAndPersistDependencies() which provides
+ * the all the meat of the processing for Thin Archives. In summary it will:
+ *
+ * 1. Parse the startup-dependencies.json file
+ *
+ * 2. Generate a validation key from the project validators to use for querying the database. For any two projects
+ * that produce the same validation key, the validator is GUARANTEED to produce the same result for any given
+ * JAR that is shared between the projects. In other words if mylib-1.0.0.jar is present in ProjectA and mylib-1.0.0.jar
+ * is also present in ProjectB and generating a validation key for each project results in an identical key, the validation
+ * results for both JARs will ALSO be IDENTICAL. If the validation keys for the projects are different, the validation
+ * results for the JARs (despite them being the same JAR) may or may not be identical, there is no guarantee in that case.
+ *
+ * 2. Query the database to determine which dependencies have already been validated for the given validation key.
+ * 3. Download NEW dependencies (not listed in the database) from the REMOTE origin.
+ * 4. Validate the whole project with the NEW dependencies included.
+ * 5. If the project failed validation with ValidationStatus.ERROR, return the reports and stop there. Otherwise...
+ * 6. Determine which (if any) files were untouched by the validator and attempt to persist them to STORAGE origin.
+ * 7. If any files were unable to persist due to another process writing to them, keep them in the project archive
+ * for this upload to ensure they are available in case the other process fails to complete the upload.
+ * 6. Update the database to cache the results of the validator, specifically: the newly downloaded JARs the validator
+ * removed, and the newly downloaded JARs that were untouched AND are GUARANTEED to have successfully persisted to STORAGE.
+ * 7. Keep any files modified by the validator in the project archive.
+ * 8. Remove entries from the startup-dependencies.json file for JARs that were kept in the project archive OR JARs that
+ * were removed during validation OR JARs that were cached as ValidationStatus.REMOVED in the database (from the query in
+ * step 2).
+ * 9. Return the validation reports, including a validation report specifically for actions taken based on
+ * cached validation actions.
+ * 10. Celebrate, we're done! :)
  */
 public class ArchiveUnthinner {
   private static final Logger log = LoggerFactory.getLogger(ArchiveUnthinner.class);
