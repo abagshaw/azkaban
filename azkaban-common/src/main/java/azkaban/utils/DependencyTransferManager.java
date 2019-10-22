@@ -9,7 +9,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -26,7 +25,9 @@ import static azkaban.Constants.ConfigurationKeys.*;
 import static azkaban.utils.ThinArchiveUtils.*;
 
 /**
- * handles uploading and downloading of dependencies from/to specified FileOrigin origins.
+ * handles uploading and downloading of dependencies from/to specified FileOrigin origins. Used during the thin archive
+ * upload process, and upon starting the execution of a flow defined in a thin archive (to download necessary
+ * dependencies from STORAGE)
  */
 public class DependencyTransferManager {
   public static final int MAX_DEPENDENCY_DOWNLOAD_TRIES = 2;

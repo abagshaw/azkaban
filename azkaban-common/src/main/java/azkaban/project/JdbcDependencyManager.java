@@ -16,7 +16,10 @@ import javax.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
+/**
+ * Provides methods for interacting with dependency validation cache in DB. Used during thin archive
+ * uploads.
+ */
 public class JdbcDependencyManager {
   private static final Logger log = LoggerFactory.getLogger(JdbcDependencyManager.class);
 

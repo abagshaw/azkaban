@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.codehaus.jackson.annotate.JsonProperty;
 
-/*
+/**
  * Representation of startup dependency. Maps 1:1 to an entry in startup-dependencies.json for thin archives.
  * Will automatically validate SHA1 checksum upon instantiation to avoid SQL injection when this checksum is used
  * for DB queries, as well as mitigating other issues down the road.
