@@ -17,6 +17,12 @@ public interface ProjectValidatorCacheable extends ProjectValidator {
    * for a given jar. I.e. if coollib-1.0.0.jar is included in Proj1 and is also in Proj2, so long
    * as the validator returns the same cacheKey for both Proj1 and Proj2 it should also return the
    * same validation result for the coollib-1.0.0.jar present in both projects.
+   *
+   * @param project project to get the cache key for
+   * @param projectDir directory of the uncompressed project
+   * @param additionalProps additional project-specific props (some validators may use this, others may not)
+   *
+   * @return Hash representing cache key for project
    */
-  String getCacheKey(Project proj, File projectDir, Props additionalProps);
+  String getCacheKey(Project project, File projectDir, Props additionalProps);
 }
