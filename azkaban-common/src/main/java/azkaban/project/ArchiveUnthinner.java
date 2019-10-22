@@ -31,17 +31,18 @@ import static azkaban.utils.ThinArchiveUtils.*;
 /**
  * Handles processing of uploaded Thin Archives to the web server.
  *
- * This class exposes one public function, validateProjectAndPersistDependencies() which provides
+ * This class exposes one public method, validateProjectAndPersistDependencies() which provides
  * the all the meat of the processing for Thin Archives. In summary it will:
  *
  * 1. Parse the startup-dependencies.json file
  *
  * 2. Generate a validation key from the project validators to use for querying the database. For any two projects
  * that produce the same validation key, the validator is GUARANTEED to produce the same result for any given
- * JAR that is shared between the projects. In other words if mylib-1.0.0.jar is present in ProjectA and mylib-1.0.0.jar
- * is also present in ProjectB and generating a validation key for each project results in an identical key, the validation
- * results for both JARs will ALSO be IDENTICAL. If the validation keys for the projects are different, the validation
- * results for the JARs (despite them being the same JAR) may or may not be identical, there is no guarantee in that case.
+ * JAR that is shared between the projects. In other words if mylib-1.0.0.jar is present in ProjectA and THE EXACT SAME FILE
+ * (mylib-1.0.0.jar) is also present in ProjectB and generating a validation key for each project results in an IDENTICAL key,
+ * the validation results for both JARs will ALSO be IDENTICAL. If the validation keys for the projects are different, the
+ * validation results for the JARs (despite them being the same JAR) may or may not be identical, there is no guarantee in
+ * that case.
  *
  * 2. Query the database to determine which dependencies have already been validated for the given validation key.
  * 3. Download NEW dependencies (not listed in the database) from the REMOTE origin.
