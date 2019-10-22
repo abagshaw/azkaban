@@ -2,13 +2,12 @@ package azkaban.test.executions;
 
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
-import azkaban.spi.FileValidationStatus;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.mockito.ArgumentMatcher;
 
@@ -31,10 +30,32 @@ class DependencyMatcher implements ArgumentMatcher<DependencyFile> {
   }
 }
 
+// Custom mockito argument matcher to help with matching Set<Dependency> with Set<DependencyFile>
+class DependencySetMatcher implements ArgumentMatcher<Set<DependencyFile>> {
+  private Set<Dependency> deps;
+  public DependencySetMatcher(Set<Dependency> deps) {
+    this.deps = deps;
+  }
+
+  @Override
+  public boolean matches(Set<DependencyFile> depFiles) {
+    try {
+      Set<String> depsFileNames = deps.stream().map(Dependency::getFileName).collect(Collectors.toSet());
+      Set<String> depFilesFileNames = depFiles.stream().map(Dependency::getFileName).collect(Collectors.toSet());
+      return depsFileNames.equals(depFilesFileNames);
+    } catch (Exception e) {
+      return false;
+    }
+  }
+}
+
 
 public class ThinArchiveTestUtils {
   public static DependencyFile depEq(Dependency dep) {
     return argThat(new DependencyMatcher(dep));
+  }
+  public static Set<DependencyFile> depSetEq(Set<Dependency> deps) {
+    return argThat(new DependencySetMatcher(deps));
   }
 
   public static void makeSampleThinProjectDirAB(File projectFolder) throws IOException {

@@ -4,13 +4,11 @@ import azkaban.project.validator.ValidationReport;
 import azkaban.project.validator.ValidationStatus;
 import azkaban.spi.Dependency;
 import azkaban.spi.DependencyFile;
-import azkaban.spi.DownloadOrigin;
-import azkaban.spi.FileIOStatus;
+import azkaban.spi.FileOrigin;
 import azkaban.spi.FileValidationStatus;
-import azkaban.spi.Storage;
-import azkaban.utils.DependencyDownloader;
+import azkaban.utils.DependencyTransferException;
+import azkaban.utils.DependencyTransferManager;
 import azkaban.utils.FileIOUtils;
-import azkaban.utils.HashNotMatchException;
 import azkaban.utils.InvalidHashException;
 import azkaban.utils.Props;
 import azkaban.utils.ValidatorUtils;
@@ -19,7 +17,6 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -40,17 +37,15 @@ public class ArchiveUnthinner {
   public static final String UNTHINNING_CACHED_VALIDATOR_REPORT_NAME = "Unthinning & Cached Validator Actions";
 
   private final JdbcDependencyManager jdbcDependencyManager;
-  private final DependencyDownloader dependencyDownloader;
-  private final Storage storage;
+  private final DependencyTransferManager dependencyTransferManager;
   private final ValidatorUtils validatorUtils;
 
   @Inject
   public ArchiveUnthinner(final ValidatorUtils validatorUtils, final JdbcDependencyManager jdbcDependencyManager,
-      final DependencyDownloader dependencyDownloader, final Storage storage) {
+      final DependencyTransferManager dependencyTransferManager) {
     this.validatorUtils = validatorUtils;
-    this.storage = storage;
     this.jdbcDependencyManager = jdbcDependencyManager;
-    this.dependencyDownloader = dependencyDownloader;
+    this.dependencyTransferManager = dependencyTransferManager;
   }
 
   /**
@@ -162,24 +157,11 @@ public class ArchiveUnthinner {
   }
 
   private Set<DependencyFile> persistUntouchedNewDependencies(Set<DependencyFile> untouchedNewDependencies) {
-    final Set<DependencyFile> guaranteedPersistedDeps = new HashSet<>();
     try {
-      for (DependencyFile f : untouchedNewDependencies) {
-        // If the file has a status of OPEN (it should never have a status of NON_EXISTANT) then we will not
-        // add an entry in the DB because it's possible that the other process that is currently writing the
-        // dependency fails and we want to ensure that the DB ONLY includes entries for verified dependencies
-        // when they are GUARANTEED to be persisted to storage.
-        FileIOStatus resultOfPersisting = this.storage.putDependency(f);
-        if (resultOfPersisting == FileIOStatus.CLOSED) {
-          // The dependency has a status of closed, so we are guaranteed that it persisted successfully to storage.
-          guaranteedPersistedDeps.add(f);
-        }
-      }
-    } catch (Exception e) {
-      throw new ProjectManagerException("Error while persisting dependencies.", e);
+      return this.dependencyTransferManager.uploadAllDependencies(untouchedNewDependencies, FileOrigin.STORAGE);
+    } catch (DependencyTransferException e) {
+      throw new ProjectManagerException(e.getMessage(), e.getCause());
     }
-
-    return guaranteedPersistedDeps;
   }
 
   private Map<Dependency, FileValidationStatus> getValidationStatuses(Set<Dependency> deps,
@@ -215,18 +197,18 @@ public class ArchiveUnthinner {
 
   private Set<DependencyFile> downloadDependencyFiles(File projectFolder,
       Set<Dependency> toDownload) {
-    final Set<DependencyFile> downloadedFiles = new HashSet();
-    for (Dependency d : toDownload) {
+    final Set<DependencyFile> depFiles = toDownload.stream().map(d -> {
       File downloadedJar = new File(projectFolder, d.getDestination() + File.separator + d.getFileName());
-      DependencyFile downloadedDependency = d.makeDependencyFile(downloadedJar);
-      try {
-        this.dependencyDownloader.downloadDependency(downloadedDependency, DownloadOrigin.REMOTE);
-      } catch (IOException | HashNotMatchException e) {
-        throw new ProjectManagerException("Error while downloading dependency " + d.getFileName(), e);
-      }
-      downloadedFiles.add(downloadedDependency);
+      return d.makeDependencyFile(downloadedJar);
+    }).collect(Collectors.toSet());
+
+    try {
+      this.dependencyTransferManager.downloadAllDependencies(depFiles, FileOrigin.REMOTE);
+    } catch (DependencyTransferException e) {
+      throw new ProjectManagerException(e.getMessage(), e.getCause());
     }
-    return downloadedFiles;
+
+    return depFiles;
   }
 
   private Set<DependencyFile> getDepsFromReports(Map<String, ValidationReport> reports,

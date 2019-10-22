@@ -17,26 +17,15 @@
 
 package azkaban.execapp;
 
-import static azkaban.test.executions.ThinArchiveTestUtils.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
-import azkaban.spi.DownloadOrigin;
+import azkaban.spi.Dependency;
+import azkaban.spi.FileOrigin;
 import azkaban.storage.ProjectStorageManager;
 import azkaban.test.executions.ThinArchiveTestUtils;
-import azkaban.utils.DependencyDownloader;
+import azkaban.utils.DependencyTransferManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.Utils;
 import java.io.File;
@@ -45,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -52,6 +42,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import static azkaban.test.executions.ThinArchiveTestUtils.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
+import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 
 public class FlowPreparerTest {
@@ -66,7 +63,7 @@ public class FlowPreparerTest {
   private File executionsDir;
   private File projectsDir;
   private FlowPreparer instance;
-  private DependencyDownloader dependencyDownloader;
+  private DependencyTransferManager dependencyTransferManager;
 
   private ProjectStorageManager createMockStorageManager() throws Exception {
     final ClassLoader classLoader = getClass().getClassLoader();
@@ -105,10 +102,10 @@ public class FlowPreparerTest {
     this.executionsDir = this.temporaryFolder.newFolder("executions");
     this.projectsDir = this.temporaryFolder.newFolder("projects");
 
-    this.dependencyDownloader = mock(DependencyDownloader.class);
+    this.dependencyTransferManager = mock(DependencyTransferManager.class);
 
     this.instance = spy(
-        new FlowPreparer(createMockStorageManager(), this.dependencyDownloader, this.projectsDir, null,
+        new FlowPreparer(createMockStorageManager(), this.dependencyTransferManager, this.projectsDir, null,
             new ProjectCacheHitRatio(), this.executionsDir));
     doNothing().when(this.instance).updateLastModifiedTime(any());
   }
@@ -213,7 +210,7 @@ public class FlowPreparerTest {
     final File tmp = this.instance.downloadProjectIfNotExists(proj, 124);
 
     // This is a fat zip, we should not attempt to download anything!
-    verify(this.dependencyDownloader, never()).downloadDependency(any(), any());
+    verify(this.dependencyTransferManager, never()).downloadAllDependencies(any(), any());
   }
 
   @Test
@@ -223,7 +220,7 @@ public class FlowPreparerTest {
     final File tmp = this.instance.downloadProjectIfNotExists(proj, 124);
 
     // This is a thin zip, we expect both dependencies to be downloaded
-    verify(this.dependencyDownloader).downloadDependency(depEq(ThinArchiveTestUtils.getDepA()), eq(DownloadOrigin.STORAGE));
-    verify(this.dependencyDownloader).downloadDependency(depEq(ThinArchiveTestUtils.getDepB()), eq(DownloadOrigin.STORAGE));
+    Set<Dependency> expectedDownloadedDeps = ThinArchiveTestUtils.getDepSetAB();
+    verify(this.dependencyTransferManager).downloadAllDependencies(depSetEq(expectedDownloadedDeps), eq(FileOrigin.STORAGE));
   }
 }

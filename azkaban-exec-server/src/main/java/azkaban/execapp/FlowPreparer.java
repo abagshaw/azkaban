@@ -16,26 +16,22 @@
  */
 package azkaban.execapp;
 
-import static azkaban.utils.ThinArchiveUtils.*;
-import static com.google.common.base.Preconditions.checkState;
-import static java.util.Objects.requireNonNull;
-
 import azkaban.execapp.metric.ProjectCacheHitRatio;
 import azkaban.executor.ExecutableFlow;
 import azkaban.executor.ExecutorManagerException;
 import azkaban.project.ProjectFileHandler;
 import azkaban.spi.Dependency;
-import azkaban.spi.DownloadOrigin;
+import azkaban.spi.DependencyFile;
+import azkaban.spi.FileOrigin;
 import azkaban.storage.ProjectStorageManager;
-import azkaban.utils.DependencyDownloader;
+import azkaban.utils.DependencyTransferException;
+import azkaban.utils.DependencyTransferManager;
 import azkaban.utils.FileIOUtils;
-import azkaban.utils.HashNotMatchException;
 import azkaban.utils.InvalidHashException;
 import azkaban.utils.Utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,10 +39,15 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static azkaban.utils.ThinArchiveUtils.*;
+import static com.google.common.base.Preconditions.*;
+import static java.util.Objects.*;
 
 
 class FlowPreparer {
@@ -64,9 +65,9 @@ class FlowPreparer {
   // Null if cache clean-up is disabled
   private final Optional<ProjectCacheCleaner> projectCacheCleaner;
   private final ProjectCacheHitRatio projectCacheHitRatio;
-  private final DependencyDownloader dependencyDownloader;
+  private final DependencyTransferManager dependencyTransferManager;
 
-  FlowPreparer(final ProjectStorageManager projectStorageManager, final DependencyDownloader dependencyDownloader,
+  FlowPreparer(final ProjectStorageManager projectStorageManager, final DependencyTransferManager dependencyTransferManager,
       final File projectsDir, final ProjectCacheCleaner cleaner, final ProjectCacheHitRatio projectCacheHitRatio,
       final File executionsDir) {
     Preconditions.checkNotNull(projectStorageManager);
@@ -82,7 +83,7 @@ class FlowPreparer {
     this.projectCacheDir = projectsDir;
     this.projectCacheCleaner = Optional.ofNullable(cleaner);
     this.projectCacheHitRatio = projectCacheHitRatio;
-    this.dependencyDownloader = dependencyDownloader;
+    this.dependencyTransferManager = dependencyTransferManager;
   }
 
   /**
@@ -253,23 +254,10 @@ class FlowPreparer {
 
     // Download each of the dependencies from storage
     LOGGER.info(String.format("Downloading %d JAR dependencies...", dependencies.size()));
-    for (Dependency d : dependencies) {
-      downloadDependency(folder, d);
-    }
-    LOGGER.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
-  }
-
-  /**
-   * Download single JAR dependency from storage
-   *
-   * @param folder root of unzipped project
-   * @param dependency details of dependency to download
-   * @throws IOException if downloading JAR fails or hash validation fails
-   */
-  private void downloadDependency(final File folder, final Dependency dependency) throws IOException {
+    Set<DependencyFile> depFiles = dependencies.stream().map(d -> getDependencyFile(folder, d)).collect(Collectors.toSet());
     try {
-      this.dependencyDownloader.downloadDependency(getDependencyFile(folder, dependency), DownloadOrigin.STORAGE);
-    } catch (FileNotFoundException e) {
+      this.dependencyTransferManager.downloadAllDependencies(depFiles, FileOrigin.STORAGE);
+    } catch (DependencyTransferException e) {
       // Uh oh, if you get this error you can blame an intern. Projects should only successfully upload
       // if ALL their necessary dependencies were persisted successfully to storage. Looks like that didn't happen
       // in this case. If re-uploading the project doesn't solve the issue, wiping all rows from the
@@ -282,12 +270,10 @@ class FlowPreparer {
       // not have to be true. Each persisted dependency in storage does not necessarily need any accompanying entries
       // in the validated_dependencies table. The validated_dependencies table is a cache and thus it is safe to
       // delete any and all rows at any time and it will rebuild automatically as more projects are uploaded.
-      LOGGER.error("Could not find startup dependency {} Try re-uploading project.", dependency.getFileName(), e);
+      LOGGER.error("Error while downloading one or more dependencies. Try re-uploading project.");
       throw e;
-    } catch (HashNotMatchException e) {
-      LOGGER.error("Hash validation failed when downloading startup dependency {}", dependency.getFileName(), e);
-      throw new IOException(e);
     }
+    LOGGER.info(String.format("Finished downloading %d JAR dependencies", dependencies.size()));
   }
 
   /**
