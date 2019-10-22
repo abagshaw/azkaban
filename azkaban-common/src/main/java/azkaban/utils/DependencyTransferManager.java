@@ -32,7 +32,7 @@ import static azkaban.utils.ThinArchiveUtils.*;
 public class DependencyTransferManager {
   public static final int MAX_DEPENDENCY_DOWNLOAD_TRIES = 2;
 
-  private static final int NUM_THREADS = Runtime.getRuntime().availableProcessors();
+  private static final int NUM_THREADS = 4;
 
   private static final int REMOTE_DOWNLOAD_READ_TIMEOUT = 5 * 60; // 5 minute timeout
   private static final int REMOTE_DOWNLOAD_CONNECTION_TIMEOUT = 10; // 10 second timeout
