@@ -57,6 +57,11 @@ public class DependencyTransferManager {
    * (i.e. they have a file status of FileIOStatus.CLOSED)
    */
   public Set<DependencyFile> uploadAllDependencies(final Set<DependencyFile> deps, FileOrigin origin) {
+    if (deps.size() == 0) {
+      // Nothing for us to do! Just return the empty set.
+      return deps;
+    }
+
     if (origin != FileOrigin.STORAGE) {
       throw new UnsupportedOperationException("Invalid upload origin. Can only upload to STORAGE!");
     }
@@ -109,6 +114,11 @@ public class DependencyTransferManager {
    * (i.e. they have a file status of FileIOStatus.CLOSED)
    */
   public void downloadAllDependencies(final Set<DependencyFile> deps, FileOrigin origin) {
+    if (deps.size() == 0) {
+      // Nothing for us to do!
+      return;
+    }
+
     ExecutorService threadPool = Executors.newFixedThreadPool(NUM_THREADS);
     CompletableFuture[] taskFutures = deps
         .stream()

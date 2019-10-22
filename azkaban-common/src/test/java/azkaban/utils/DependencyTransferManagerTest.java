@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -105,6 +106,19 @@ public class DependencyTransferManagerTest {
 
     verify(this.storage).putDependency(depA);
     verify(this.storage).putDependency(depB);
+  }
+
+  @Test
+  public void testUploadEmptySet() throws Exception {
+    // Make sure we get back an empty set when persisting nothing
+    assertEquals(Collections.emptySet(),
+        this.dependencyTransferManager.uploadAllDependencies(Collections.emptySet(), FileOrigin.STORAGE));
+  }
+
+  @Test
+  public void testDownloadEmptySet() throws Exception {
+    // Make sure there are no failures when we download with an empty set (it should do nothing)
+    this.dependencyTransferManager.downloadAllDependencies(Collections.emptySet(), FileOrigin.STORAGE);
   }
 
   @Test(expected = DependencyTransferException.class)
