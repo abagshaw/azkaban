@@ -15,9 +15,6 @@
  */
 package azkaban.execapp;
 
-import static azkaban.ServiceProvider.SERVICE_PROVIDER;
-import static java.util.Objects.requireNonNull;
-
 import azkaban.Constants;
 import azkaban.Constants.ConfigurationKeys;
 import azkaban.event.Event;
@@ -44,9 +41,8 @@ import azkaban.project.ProjectWhitelist.WhitelistType;
 import azkaban.sla.SlaOption;
 import azkaban.spi.AzkabanEventReporter;
 import azkaban.spi.EventType;
-import azkaban.spi.Storage;
 import azkaban.storage.ProjectStorageManager;
-import azkaban.utils.DependencyDownloader;
+import azkaban.utils.DependencyTransferManager;
 import azkaban.utils.FileIOUtils;
 import azkaban.utils.FileIOUtils.JobMetaData;
 import azkaban.utils.FileIOUtils.LogData;
@@ -86,6 +82,9 @@ import javax.inject.Singleton;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static azkaban.ServiceProvider.*;
+import static java.util.Objects.*;
 
 
 /**
@@ -147,7 +146,7 @@ public class FlowRunnerManager implements EventListener,
   private final Object executionDirDeletionSync = new Object();
   private final CommonMetrics commonMetrics;
   private final ExecMetrics execMetrics;
-  private final DependencyDownloader dependencyDownloader;
+  private final DependencyTransferManager dependencyTransferManager;
 
   private final int numThreads;
   private final int numJobThreadPerFlow;
@@ -175,7 +174,7 @@ public class FlowRunnerManager implements EventListener,
       final AlerterHolder alerterHolder,
       final CommonMetrics commonMetrics,
       final ExecMetrics execMetrics,
-      final DependencyDownloader dependencyDownloader,
+      final DependencyTransferManager dependencyTransferManager,
       @Nullable final AzkabanEventReporter azkabanEventReporter) throws IOException {
     this.azkabanProps = props;
 
@@ -202,7 +201,7 @@ public class FlowRunnerManager implements EventListener,
     this.alerterHolder = alerterHolder;
     this.commonMetrics = commonMetrics;
     this.execMetrics = execMetrics;
-    this.dependencyDownloader = dependencyDownloader;
+    this.dependencyTransferManager = dependencyTransferManager;
 
     this.flowRampManager = flowRampManager;
 
@@ -231,7 +230,7 @@ public class FlowRunnerManager implements EventListener,
     }
 
     // Create a flow preparer
-    this.flowPreparer = new FlowPreparer(projectStorageManager, this.dependencyDownloader, this.projectDirectory, cleaner,
+    this.flowPreparer = new FlowPreparer(projectStorageManager, this.dependencyTransferManager, this.projectDirectory, cleaner,
         this.execMetrics.getProjectCacheHitRatio(), this.executionDirectory);
 
     this.execMetrics.addFlowRunnerManagerMetrics(this);

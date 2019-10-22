@@ -188,11 +188,11 @@ public class DependencyTransferManager {
     }
   }
 
-  private static void waitForAllToSucceedOrOneToFail(CompletableFuture[] futures)
+  private static void waitForAllToSucceedOrOneToFail(CompletableFuture<?>[] futures)
       throws InterruptedException, ExecutionException {
     CompletableFuture<?> failure = new CompletableFuture();
     for (CompletableFuture<?> f : futures) {
-      f.exceptionally(ex -> {
+      f = f.exceptionally(ex -> {
         failure.completeExceptionally(ex);
         return null;
       });
