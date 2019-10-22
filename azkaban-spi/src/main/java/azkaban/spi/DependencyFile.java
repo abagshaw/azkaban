@@ -4,7 +4,11 @@ import azkaban.utils.InvalidHashException;
 import java.io.File;
 import java.util.Objects;
 
-
+/*
+ * Representation of startup dependency with an associated local file. Usually a DependencyFile will never be
+ * directly instantiated (except maybe in tests), but rather will be generated from an instance of a Dependency
+ * using Dependency::makeDependencyFile(File f)
+ */
 public class DependencyFile extends Dependency {
   private File file;
 
