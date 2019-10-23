@@ -40,28 +40,29 @@ public class JdbcDependencyManager {
       return depValidationStatuses;
     }
 
-    // Map of (sha1 + filename) -> Dependency for resolving the dependencies already cached in the DB
+    // Map of (filename + sha1) -> Dependency for resolving the dependencies already cached in the DB
     // after the query completes.
     Map<String, Dependency> hashAndFileNameToDep = new HashMap<>();
 
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
-        "select file_sha1, file_name, validation_status from validated_dependencies where validation_key = ? and ("
+        "select file_name, file_sha1, validation_status from validated_dependencies where validation_key = ? and ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
 
+    // Set the first param, which is the validation_key
     stmnt.setString(1, validationKey);
 
     // Start at 2 because the first parameter is at index 1, and that is the validator key that we already set.
     int index = 2;
     for (Dependency d : deps) {
-      stmnt.setString(index++, d.getSHA1());
       stmnt.setString(index++, d.getFileName());
-      hashAndFileNameToDep.put(d.getSHA1() + d.getFileName(), d);
+      stmnt.setString(index++, d.getSHA1());
+      hashAndFileNameToDep.put(d.getFileName() + d.getSHA1(), d);
     }
 
     ResultSet rs = stmnt.executeQuery();
 
     while (rs.next()) {
-      // Columns are (starting at index 1): file_sha1, file_name, validation_status
+      // Columns are (starting at index 1): file_name, file_sha1, validation_status
       Dependency d = hashAndFileNameToDep.remove(rs.getString(1) + rs.getString(2));
       FileValidationStatus v = FileValidationStatus.valueOf(rs.getInt(3));
       depValidationStatuses.put(d, v);
@@ -80,11 +81,11 @@ public class JdbcDependencyManager {
       return;
     }
 
-    // Order of columns: file_sha1, file_name, validation_key, validation_status
+    // Order of columns: file_name, file_sha1, validation_key, validation_status
     Object[][] rowsToInsert = depValidationStatuses
         .keySet()
         .stream()
-        .map(d -> new Object[]{d.getSHA1(), d.getFileName(), validationKey, depValidationStatuses.get(d).getValue()})
+        .map(d -> new Object[]{d.getFileName(), d.getSHA1(), validationKey, depValidationStatuses.get(d).getValue()})
         .toArray(Object[][]::new);
 
     // We use insert IGNORE because a another process may have been processing the same dependency
@@ -97,9 +98,9 @@ public class JdbcDependencyManager {
   private static String makeStrWithQuestionMarks(final int num) {
     StringBuilder builder = new StringBuilder();
     for(int i = 0; i < num; i++) {
-      builder.append("(file_sha1 = ? and file_name = ?) or ");
+      builder.append("(file_name = ? and file_sha1 = ?) or ");
     }
     // Remove trailing " or ";
-    return builder.deleteCharAt(builder.length() - 4).toString();
+    return builder.substring(0, builder.length() - 4);
   }
 }

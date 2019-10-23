@@ -66,20 +66,20 @@ public class JdbcDependencyManagerTest {
 
     // Also for some reason ResultSets return the first result at index at 1 so we set pad this with a
     // null at the beginning.
-    // Columns are: file_sha1, file_name, validation_status
+    // Columns are: file_name, file_sha1, validation_status
     Object[][] results = new Object[][] {
         null,
-        {depA.getSHA1(), depA.getFileName(), FileValidationStatus.REMOVED.getValue()},
-        {depC.getSHA1(), depC.getFileName(), FileValidationStatus.VALID.getValue()}
+        {depA.getFileName(), depA.getSHA1(), FileValidationStatus.REMOVED.getValue()},
+        {depC.getFileName(), depC.getSHA1(), FileValidationStatus.VALID.getValue()}
     };
 
     // Mock the parsing of the query result
     final AtomicInteger currResultIndex = new AtomicInteger();
     // Handle the next function
     doAnswer((Answer<Boolean>) invocation -> currResultIndex.getAndIncrement() + 1 < results.length).when(rs).next();
-    // Handle file_sha1
-    doAnswer((Answer<String>) invocation -> (String) results[currResultIndex.get()][0]).when(rs).getString(1);
     // Handle file_name
+    doAnswer((Answer<String>) invocation -> (String) results[currResultIndex.get()][0]).when(rs).getString(1);
+    // Handle file_sha1
     doAnswer((Answer<String>) invocation -> (String) results[currResultIndex.get()][1]).when(rs).getString(2);
     // Handle validation_status
     doAnswer((Answer<Integer>) invocation -> (Integer) results[currResultIndex.get()][2]).when(rs).getInt(3);
