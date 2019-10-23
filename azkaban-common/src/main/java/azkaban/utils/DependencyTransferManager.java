@@ -152,6 +152,10 @@ public class DependencyTransferManager {
       throws HashNotMatchException, IOException {
     try {
       tries++;
+
+      // Make any necessary directories
+      f.getFile().getParentFile().mkdirs();
+
       if (origin == FileOrigin.REMOTE) {
         FileUtils.copyURLToFile(
             getUrlForDependency(f),

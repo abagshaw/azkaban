@@ -468,7 +468,7 @@ public class ArchiveUnthinnerTest {
     // the process that is uploading it fails to successfully complete the upload and the dependency is
     // not available from storage at runtime.
     File depBInProject = new File(projectFolder, depB.getDestination() + File.separator + depB.getFileName());
-    assertEquals(2, new File(projectFolder, depB.getDestination()).listFiles().length);
+    assertEquals(1, new File(projectFolder, "lib").listFiles().length);
     assertTrue(depBInProject.exists());
 
     // Verify that the startup-dependencies.json file now contains ONLY depA

@@ -46,11 +46,9 @@ public class DependencyTransferManagerTest {
   private Props props;
 
   private URL depAFullUrl;
-  private File depAFile;
   private DependencyFile depA;
 
   private URL depBFullUrl;
-  private File depBFile;
   private DependencyFile depB;
 
   private Set<DependencyFile> depSetAB;
@@ -62,13 +60,13 @@ public class DependencyTransferManagerTest {
     this.props.put(AZKABAN_STARTUP_DEPENDENCIES_REMOTE_DOWNLOAD_BASE_URL, DOWNLOAD_BASE_URL);
     this.storage = mock(Storage.class);
 
+    File tempFolder = TEMP_DIR.newFolder("tmpproj");
+
     depAFullUrl = new URL(new URL(DOWNLOAD_BASE_URL), ThinArchiveTestUtils.getDepAPath());
-    depAFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepA().getFileName());
-    depA = ThinArchiveTestUtils.getDepA().makeDependencyFile(depAFile);
+    depA = ThinArchiveUtils.getDependencyFile(tempFolder, ThinArchiveTestUtils.getDepA());
 
     depBFullUrl = new URL(new URL(DOWNLOAD_BASE_URL), ThinArchiveTestUtils.getDepBPath());
-    depBFile = TEMP_DIR.newFile(ThinArchiveTestUtils.getDepB().getFileName());
-    depB = ThinArchiveTestUtils.getDepB().makeDependencyFile(depBFile);
+    depB = ThinArchiveUtils.getDependencyFile(tempFolder, ThinArchiveTestUtils.getDepB());
 
     depSetAB = new HashSet();
     depSetAB.add(depA);
@@ -154,10 +152,10 @@ public class DependencyTransferManagerTest {
     this.dependencyTransferManager.downloadAllDependencies(depSetAB, FileOrigin.REMOTE);
 
     PowerMockito.verifyStatic(FileUtils.class, Mockito.times(1));
-    FileUtils.copyURLToFile(Mockito.eq(depAFullUrl), Mockito.eq(depAFile), Mockito.anyInt(), Mockito.anyInt());
+    FileUtils.copyURLToFile(Mockito.eq(depAFullUrl), Mockito.eq(depA.getFile()), Mockito.anyInt(), Mockito.anyInt());
 
     PowerMockito.verifyStatic(FileUtils.class, Mockito.times(1));
-    FileUtils.copyURLToFile(Mockito.eq(depBFullUrl), Mockito.eq(depBFile), Mockito.anyInt(), Mockito.anyInt());
+    FileUtils.copyURLToFile(Mockito.eq(depBFullUrl), Mockito.eq(depB.getFile()), Mockito.anyInt(), Mockito.anyInt());
   }
 
   @Test
@@ -203,13 +201,13 @@ public class DependencyTransferManagerTest {
         FileUtils.writeStringToFile(destFile, ThinArchiveTestUtils.getDepAContent());
       }
       return null;
-    }).when(FileUtils.class, "copyURLToFile", Mockito.any(URL.class), Mockito.eq(depAFile), Mockito.anyInt(), Mockito.anyInt());
+    }).when(FileUtils.class, "copyURLToFile", Mockito.any(URL.class), Mockito.eq(depA.getFile()), Mockito.anyInt(), Mockito.anyInt());
 
     // Download ONLY depA
     this.dependencyTransferManager.downloadAllDependencies(depSetA, FileOrigin.REMOTE);
 
     PowerMockito.verifyStatic(FileUtils.class, Mockito.times(2));
-    FileUtils.copyURLToFile(Mockito.eq(depAFullUrl), Mockito.eq(depAFile), Mockito.anyInt(), Mockito.anyInt());
+    FileUtils.copyURLToFile(Mockito.eq(depAFullUrl), Mockito.eq(depA.getFile()), Mockito.anyInt(), Mockito.anyInt());
   }
 
   @Test
@@ -221,7 +219,7 @@ public class DependencyTransferManagerTest {
       File destFile = (File) invocation.getArguments()[1];
       FileUtils.writeStringToFile(destFile, "WRONG CONTENT!!!!!!!");
       return null;
-    }).when(FileUtils.class, "copyURLToFile", Mockito.any(URL.class), Mockito.eq(depAFile), Mockito.anyInt(), Mockito.anyInt());
+    }).when(FileUtils.class, "copyURLToFile", Mockito.any(URL.class), Mockito.eq(depA.getFile()), Mockito.anyInt(), Mockito.anyInt());
 
     boolean hitException = false;
     try {
@@ -238,7 +236,7 @@ public class DependencyTransferManagerTest {
 
     // We expect the download to be attempted the maximum number of times before it fails
     PowerMockito.verifyStatic(FileUtils.class, Mockito.times(DependencyTransferManager.MAX_DEPENDENCY_DOWNLOAD_TRIES));
-    FileUtils.copyURLToFile(Mockito.eq(depAFullUrl), Mockito.eq(depAFile), Mockito.anyInt(), Mockito.anyInt());
+    FileUtils.copyURLToFile(Mockito.eq(depAFullUrl), Mockito.eq(depA.getFile()), Mockito.anyInt(), Mockito.anyInt());
   }
 
   @Test

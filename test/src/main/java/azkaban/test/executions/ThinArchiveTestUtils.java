@@ -134,7 +134,7 @@ public class ThinArchiveTestUtils {
     return "{" +
         "    \"sha1\": \"9461919846e1e7c8fc74fee95aa6ac74993be71e\"," +
         "    \"file\": \"bbbb.jar\"," +
-        "    \"destination\": \"lib\"," +
+        "    \"destination\": \"dep_b_folder\"," +
         "    \"type\": \"jar\"," +
         "    \"ivyCoordinates\": \"com.linkedin.test:testerbbbb:1.0.1\"" +
         "}";
@@ -144,7 +144,7 @@ public class ThinArchiveTestUtils {
     return "{" +
         "    \"sha1\": \"f873f39163f5b43dbf1fee63cbce284074896221\"," +
         "    \"file\": \"cccc.jar\"," +
-        "    \"destination\": \"lib\"," +
+        "    \"destination\": \"dep_c_folder\"," +
         "    \"type\": \"jar\"," +
         "    \"ivyCoordinates\": \"com.linkedin.test:testercccc:1.0.1\"" +
         "}";
@@ -176,7 +176,7 @@ public class ThinArchiveTestUtils {
     try {
       return new Dependency(
         "bbbb.jar",
-        "lib",
+        "dep_b_folder",
         "jar",
         "com.linkedin.test:testerbbbb:1.0.1",
         "9461919846e1e7c8fc74fee95aa6ac74993be71e");
@@ -194,7 +194,7 @@ public class ThinArchiveTestUtils {
     try {
       return new Dependency(
           "cccc.jar",
-          "lib",
+          "dep_c_folder",
           "jar",
           "com.linkedin.test:testercccc:1.0.1",
           "f873f39163f5b43dbf1fee63cbce284074896221");
