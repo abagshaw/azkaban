@@ -16,6 +16,7 @@ import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -160,7 +161,7 @@ public class ArchiveUnthinner {
     }
 
     // Delete from the project untouched downloaded dependencies that are guaranteed persisted to storage
-    guaranteedPersistedDeps.stream().forEach(d -> d.getFile().delete());
+    guaranteedPersistedDeps.forEach(d -> d.getFile().delete());
 
     // Add the cacheReport to the list of reports
     reports.put(UNTHINNING_CACHED_VALIDATOR_REPORT_NAME, cacheReport);
@@ -246,7 +247,7 @@ public class ArchiveUnthinner {
     return reports.values()
         .stream()
         .map(fn)
-        .flatMap(set -> set.stream())
+        .flatMap(Collection::stream)
         .map(f -> pathToDep.get(FileIOUtils.getCanonicalPath(f)))
         .filter(Objects::nonNull) // Some modified/removed files will not be a dependency (i.e. shapshot jar)
         .collect(Collectors.toSet());
