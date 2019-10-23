@@ -24,6 +24,7 @@ import azkaban.spi.DependencyFile;
 import azkaban.spi.FileOrigin;
 import azkaban.spi.FileValidationStatus;
 import azkaban.test.executions.ThinArchiveTestUtils;
+import azkaban.utils.DependencyTransferException;
 import azkaban.utils.DependencyTransferManager;
 import azkaban.utils.ValidatorUtils;
 import java.io.File;
@@ -474,6 +475,28 @@ public class ArchiveUnthinnerTest {
     // Verify that the startup-dependencies.json file now contains ONLY depA
     String finalJSON = FileUtils.readFileToString(startupDependenciesFile);
     JSONAssert.assertEquals(ThinArchiveTestUtils.getRawJSONDepA(), finalJSON, false);
+  }
+
+  @Test(expected = ProjectManagerException.class)
+  public void testErrorPersist() throws Exception {
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
+        .thenReturn(sampleValidationStatuses);
+
+    // When the unthinner attempts to validate the project, return an empty map (indicating that the
+    // validator found no errors and made no changes to the project)
+    when(this.validatorUtils.validateProject(eq(this.project), eq(this.projectFolder), any()))
+        .thenReturn(new HashMap<>());
+
+    // Throw an exception to indicate something went wrong during one of the uploads.
+    doThrow(new DependencyTransferException())
+        .when(this.dependencyTransferManager).uploadAllDependencies(depSetEq(depSetAB), eq(FileOrigin.STORAGE));
+
+    // Run the ArchiveUnthinner!
+    runUnthinner();
   }
 
   @Test
