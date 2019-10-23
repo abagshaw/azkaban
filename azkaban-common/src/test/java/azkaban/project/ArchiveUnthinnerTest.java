@@ -499,6 +499,26 @@ public class ArchiveUnthinnerTest {
     runUnthinner();
   }
 
+  @Test(expected = ProjectManagerException.class)
+  public void testErrorDownload() throws Exception {
+    // Indicate that the both dependencies are NEW, forcing them to be downloaded
+    Map<Dependency, FileValidationStatus> sampleValidationStatuses = new HashMap();
+    sampleValidationStatuses.put(depA, FileValidationStatus.NEW);
+    sampleValidationStatuses.put(depB, FileValidationStatus.NEW);
+    when(this.jdbcDependencyManager.getValidationStatuses(any(), eq(VALIDATION_KEY)))
+        .thenReturn(sampleValidationStatuses);
+
+    // Remove the default mock for download handling
+    reset(this.dependencyTransferManager);
+
+    // When we attempt to download the dependencies, throw an error
+    doThrow(new DependencyTransferException())
+        .when(this.dependencyTransferManager).downloadAllDependencies(depSetEq(depSetAB), eq(FileOrigin.REMOTE));
+
+    // Run the ArchiveUnthinner!
+    runUnthinner();
+  }
+
   @Test
   public void testReportWithError() throws Exception {
     // Indicate that the both dependencies are NEW, forcing them to be downloaded

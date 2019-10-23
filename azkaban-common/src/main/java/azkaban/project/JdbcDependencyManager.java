@@ -40,10 +40,12 @@ public class JdbcDependencyManager {
       return depValidationStatuses;
     }
 
-    Map<String, Dependency> hashToDep = new HashMap<>();
+    // Map of (sha1 + filename) -> Dependency for resolving the dependencies already cached in the DB
+    // after the query completes.
+    Map<String, Dependency> hashAndFileNameToDep = new HashMap<>();
 
     PreparedStatement stmnt = this.dbOperator.getDataSource().getConnection().prepareStatement(
-        "select file_sha1, validation_status from validated_dependencies where validation_key = ? and file_sha1 in ("
+        "select file_sha1, file_name, validation_status from validated_dependencies where validation_key = ? and ("
             + makeStrWithQuestionMarks(deps.size()) + ")");
 
     stmnt.setString(1, validationKey);
@@ -52,20 +54,22 @@ public class JdbcDependencyManager {
     int index = 2;
     for (Dependency d : deps) {
       stmnt.setString(index++, d.getSHA1());
-      hashToDep.put(d.getSHA1(), d);
+      stmnt.setString(index++, d.getFileName());
+      hashAndFileNameToDep.put(d.getSHA1() + d.getFileName(), d);
     }
 
     ResultSet rs = stmnt.executeQuery();
 
     while (rs.next()) {
-      Dependency d = hashToDep.remove(rs.getString(1));
-      FileValidationStatus v = FileValidationStatus.valueOf(rs.getInt(2));
+      // Columns are (starting at index 1): file_sha1, file_name, validation_status
+      Dependency d = hashAndFileNameToDep.remove(rs.getString(1) + rs.getString(2));
+      FileValidationStatus v = FileValidationStatus.valueOf(rs.getInt(3));
       depValidationStatuses.put(d, v);
     }
 
     // All remaining dependencies in the hashToDep map should be marked as being NEW (because they weren't
-    // associated with any DB entry
-    hashToDep.values().stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.NEW));
+    // associated with any DB entry)
+    hashAndFileNameToDep.values().stream().forEach(d -> depValidationStatuses.put(d, FileValidationStatus.NEW));
 
     return depValidationStatuses;
   }
@@ -76,25 +80,26 @@ public class JdbcDependencyManager {
       return;
     }
 
-    // Order of columns: file_sha1, validation_key, validation_status
+    // Order of columns: file_sha1, file_name, validation_key, validation_status
     Object[][] rowsToInsert = depValidationStatuses
         .keySet()
         .stream()
-        .map(d -> new Object[]{d.getSHA1(), validationKey, depValidationStatuses.get(d).getValue()})
+        .map(d -> new Object[]{d.getSHA1(), d.getFileName(), validationKey, depValidationStatuses.get(d).getValue()})
         .toArray(Object[][]::new);
 
     // We use insert IGNORE because a another process may have been processing the same dependency
     // and written the row for a given dependency before we were able to (resulting in a duplicate primary key
     // error when we try to write the row), so this will ignore the error and continue persisting the other
     // dependencies.
-    this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?, ?)", rowsToInsert);
+    this.dbOperator.batch("insert ignore into validated_dependencies values (?, ?, ?, ?)", rowsToInsert);
   }
 
   private static String makeStrWithQuestionMarks(final int num) {
     StringBuilder builder = new StringBuilder();
     for(int i = 0; i < num; i++) {
-      builder.append("?,");
+      builder.append("(file_sha1 = ? and file_name = ?) or ");
     }
-    return builder.deleteCharAt(builder.length() - 1).toString();
+    // Remove trailing " or ";
+    return builder.deleteCharAt(builder.length() - 4).toString();
   }
 }
