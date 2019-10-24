@@ -312,8 +312,8 @@ class FlowPreparer {
     final File tempDir = createTempDir(proj);
     downloadAndUnzipProject(proj, tempDir);
 
-    LOGGER.info("Downloading zip file for project {} when preparing execution [execid {}] "
-            + "completed in {} second(s)", proj, execId,
+    LOGGER.info("Downloading zip file (and dependencies if necessary) for project {} when preparing "
+            + "execution [execid {}] completed in {} second(s)", proj, execId,
         (System.currentTimeMillis() - start) / 1000);
 
     return tempDir;
