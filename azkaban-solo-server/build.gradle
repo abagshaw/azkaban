@@ -3,16 +3,12 @@ description = 'A test server which runs the web server and an executor in one pr
 apply plugin: 'distribution'
 
 dependencies {
-    compile(project(':azkaban-web-server'))
+    compile(project(':azkaban-web-server-rest'))
     compile(project(':azkaban-exec-server'))
 
     runtime deps.h2
     runtime deps.hadoopCommon
 }
-
-installDist.dependsOn ':azkaban-web-server:installDist'
-distTar.dependsOn ':azkaban-web-server:installDist'
-distZip.dependsOn ':azkaban-web-server:installDist'
 
 distributions {
     main {
@@ -39,10 +35,6 @@ distributions {
             }
             from(project(':azkaban-db').files('src/main/sql')) {
                 into('sql')
-            }
-            // Get the files from sub-dir of distribution of another sub-project
-            from(new File(tasks.getByPath(':azkaban-web-server:installDist').destinationDir, 'web')) {
-                into 'web'
             }
         }
     }

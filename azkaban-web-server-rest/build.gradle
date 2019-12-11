@@ -1,0 +1,33 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+}
+
+apply plugin: 'distribution'
+
+dependencies {
+    compile project(':az-core')
+    compile project(':azkaban-common')
+    compile project(':az-flow-trigger-dependency-plugin')
+
+    compile deps.velocityTools
+
+    compile(deps.springBoot) {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
+    }
+
+    compile "javax.servlet:javax.servlet-api:3.1.0"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/main/java'
+        }
+    }
+}

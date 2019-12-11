@@ -19,7 +19,6 @@ import static azkaban.Constants.DEFAULT_PORT_NUMBER;
 import static azkaban.Constants.DEFAULT_SSL_PORT_NUMBER;
 
 import azkaban.Constants;
-import azkaban.server.session.SessionCache;
 import azkaban.user.UserManager;
 import azkaban.utils.Props;
 import java.io.File;
@@ -30,7 +29,6 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import org.apache.log4j.Logger;
-import org.apache.velocity.app.VelocityEngine;
 
 
 public abstract class AzkabanServer {
@@ -145,10 +143,6 @@ public abstract class AzkabanServer {
   }
 
   public abstract Props getServerProps();
-
-  public abstract SessionCache getSessionCache();
-
-  public abstract VelocityEngine getVelocityEngine();
 
   public abstract UserManager getUserManager();
 }

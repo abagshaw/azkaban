@@ -23,10 +23,10 @@ import azkaban.database.AzkabanDatabaseSetup;
 import azkaban.database.AzkabanDatabaseUpdater;
 import azkaban.execapp.AzkabanExecServerModule;
 import azkaban.execapp.AzkabanExecutorServer;
+import azkaban.restwebapp.AzkabanWebServerRest;
+import azkaban.restwebapp.AzkabanWebServerRestModule;
 import azkaban.server.AzkabanServer;
 import azkaban.utils.Props;
-import azkaban.webapp.AzkabanWebServer;
-import azkaban.webapp.AzkabanWebServerModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import java.io.File;
@@ -41,13 +41,13 @@ import org.apache.log4j.Logger;
 
 public class AzkabanSingleServer {
 
-  private static final Logger log = Logger.getLogger(AzkabanWebServer.class);
+  private static final Logger log = Logger.getLogger(AzkabanWebServerRest.class);
 
-  private final AzkabanWebServer webServer;
+  private final AzkabanWebServerRest webServer;
   private final AzkabanExecutorServer executor;
 
   @Inject
-  public AzkabanSingleServer(final AzkabanWebServer webServer,
+  public AzkabanSingleServer(final AzkabanWebServerRest webServer,
       final AzkabanExecutorServer executor) {
     this.webServer = webServer;
     this.executor = executor;
@@ -96,7 +96,7 @@ public class AzkabanSingleServer {
     /* Initialize Guice Injector */
     final Injector injector = Guice.createInjector(
         new AzkabanCommonModule(props),
-        new AzkabanWebServerModule(props),
+        new AzkabanWebServerRestModule(props),
         new AzkabanExecServerModule()
     );
     SERVICE_PROVIDER.setInjector(injector);
@@ -128,7 +128,7 @@ public class AzkabanSingleServer {
         .setExecutorActive(true, this.executor.getHost(), this.executor.getPort());
     log.info("Azkaban Exec Server activated...");
 
-    AzkabanWebServer.launch(this.webServer);
+    AzkabanWebServerRest.launch(this.webServer);
     log.info("Azkaban Web Server started...");
   }
 }

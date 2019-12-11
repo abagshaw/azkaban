@@ -542,7 +542,6 @@ public class AzkabanWebServer extends AzkabanServer implements IMBeanRegistrable
   /**
    * Returns the web session cache.
    */
-  @Override
   public SessionCache getSessionCache() {
     return this.sessionCache;
   }
@@ -550,7 +549,6 @@ public class AzkabanWebServer extends AzkabanServer implements IMBeanRegistrable
   /**
    * Returns the velocity engine for pages to use.
    */
-  @Override
   public VelocityEngine getVelocityEngine() {
     return this.velocityEngine;
   }
